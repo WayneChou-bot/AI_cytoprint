@@ -202,6 +202,7 @@ def main():
         web[n]["neighbors"] = [{"name": names[j], "sim": round(float(S[i][j]), 2)} for j in order]
     payload = {"channel_map": {f"ch{k}": v for k, v in CH.items()},
                "channel_note": "ch5=DNA 與 ch1=Mito 為實證確認;ch2/3/4 依波長順序推定(見程式檔頭)",
+               "channel_note_en": "ch5=DNA and ch1=Mito determined empirically; ch2/3/4 inferred from acquisition wavelength order (see module docstring)",
                "source": "JUMP pilot CPJUMP1 (cpg0000) example_images · plates BR00117010-13 · U2OS · 1 field/compound",
                "feature_names": cols, "n_features": len(cols), "order": ORDER, "compounds": web}
     (OUT/"webimages.json").write_text(json.dumps(payload), encoding="utf-8")
