@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>MorphoProfile — 細胞影像形態分析 · 真實資料互動展示</title>
+<meta name="description" content="用 JUMP / Cell Painting 開源細胞影像形態指紋做 MoA 相似度檢索、批次去偏與命中判定。真實資料驅動的互動作品。"/>
+<style>
+  :root{
+    --bg:#06060c;--panel:#0d0d16;--panel2:#0a0a12;--line:rgba(150,160,210,.13);
+    --ink:#e9ecf8;--dim:#828aa8;--dna:#5a86ff;--rna:#5ae0d6;--er:#5ad07a;--agp:#ff9a46;--mito:#ff6bd0;
+    --accent:#ff6bd0;--good:#5ad07a;--warn:#ff9a46;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:radial-gradient(1200px 600px at 70% -10%,rgba(90,134,255,.06),transparent),var(--bg);
+    color:var(--ink);font-family:ui-monospace,"SFMono-Regular","JetBrains Mono",Menlo,Consolas,monospace;
+    -webkit-font-smoothing:antialiased;padding:20px;max-width:1200px;margin:0 auto;line-height:1.5}
+  a{color:var(--rna);text-decoration:none;border-bottom:1px dotted rgba(90,224,214,.4)}
+  a:hover{border-bottom-style:solid}
+  header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;
+    padding-bottom:14px;border-bottom:1px solid var(--line)}
+  header .ey{font-size:10px;letter-spacing:.34em;color:var(--accent);text-transform:uppercase}
+  header h1{font-size:23px;margin:6px 0;letter-spacing:.02em}
+  header .sub{font-size:12px;color:var(--dim);line-height:1.7;max-width:760px}
+  header .sub b{color:var(--rna)}
+  .badges{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+  .tag{display:inline-block;font-size:9px;letter-spacing:.16em;text-transform:uppercase;padding:4px 9px;border-radius:6px;
+    background:rgba(90,208,122,.14);color:var(--good);border:1px solid rgba(90,208,122,.35);white-space:nowrap}
+  .tag.pink{background:rgba(255,107,208,.14);color:var(--accent);border-color:rgba(255,107,208,.3)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:14px}
+  .card h2{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-bottom:12px;
+    display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .card h2 .hint{font-size:9px;letter-spacing:.05em;text-transform:none;color:var(--dim);font-weight:400}
+  .sec-title{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin:26px 2px 2px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .grid2 .card,.grid3 .card{margin-top:0}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  /* stats strip */
+  .stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+  .stat{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px 12px}
+  .stat .n{font-size:20px;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .stat .l{font-size:9.5px;color:var(--dim);letter-spacing:.04em;margin-top:3px}
+  .stat .n small{font-size:11px;color:var(--dim)}
+  /* montage */
+  #cells{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:10px;background:#04040a}
+  .legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;font-size:10.5px;color:var(--dim)}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  /* pipeline */
+  .pipe{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .pstep{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px;position:relative}
+  .pstep .k{font-size:9px;color:var(--accent);letter-spacing:.1em}
+  .pstep .t{font-size:12px;margin:5px 0 3px}
+  .pstep .d{font-size:10px;color:var(--dim);line-height:1.5}
+  /* explorer */
+  #umap{width:100%;height:auto;display:block;background:var(--panel2);border:1px solid var(--line);border-radius:10px;cursor:crosshair;touch-action:none}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+  .controls input,.controls select,.controls button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);
+    border-radius:8px;padding:7px 10px;font:inherit;font-size:11px}
+  .controls button{cursor:pointer}
+  .controls button.on{border-color:var(--accent);color:var(--accent)}
+  .umap-legend{display:flex;flex-wrap:wrap;gap:8px 12px;margin-top:10px;font-size:10px;color:var(--dim)}
+  .umap-legend span{cursor:pointer;user-select:none}
+  .umap-legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:middle}
+  .umap-legend span.off{opacity:.3}
+  /* retrieval */
+  table{width:100%;border-collapse:collapse;font-size:11.5px}
+  th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line)}
+  th{font-size:9px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;font-weight:400}
+  td .simbar{display:inline-block;height:5px;border-radius:3px;background:var(--rna);vertical-align:middle;margin-left:6px}
+  .moa{font-size:9px;padding:2px 7px;border-radius:5px;background:rgba(130,138,168,.18);color:var(--dim);letter-spacing:.03em;white-space:nowrap}
+  .moa.hit{background:rgba(90,208,122,.16);color:var(--good)}
+  .infer{margin-top:12px;background:rgba(90,224,214,.07);border:1px solid rgba(90,224,214,.28);border-radius:10px;padding:11px 13px}
+  .infer .l{font-size:13px;color:var(--rna);font-weight:600}
+  .infer .c{font-size:11px;color:var(--dim);margin-top:4px}
+  .qhead{display:flex;align-items:baseline;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+  .qhead .qn{font-size:15px;color:var(--ink)}
+  .qhead .qm{font-size:10px;color:var(--agp)}
+  /* metric cards */
+  .metric{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:14px;text-align:center}
+  .metric .n{font-size:26px;color:var(--rna);font-variant-numeric:tabular-nums}
+  .metric .n.pink{color:var(--accent)} .metric .n.green{color:var(--good)}
+  .metric .l{font-size:10px;color:var(--dim);margin-top:5px;line-height:1.5}
+  /* callout */
+  .callout{background:linear-gradient(90deg,rgba(255,107,208,.08),transparent);border:1px solid rgba(255,107,208,.28);
+    border-left:3px solid var(--accent);border-radius:10px;padding:13px 15px;font-size:12px;color:var(--ink);line-height:1.7}
+  .callout b{color:var(--accent)}
+  /* charts */
+  .plot{width:100%;height:auto;display:block}
+  .kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:11.5px}
+  .kv:last-child{border-bottom:0}.kv .k{color:var(--dim)}.kv .v{font-variant-numeric:tabular-nums}
+  ul.clean{list-style:none;font-size:12px;color:var(--dim);line-height:1.9}
+  ul.clean li{padding-left:16px;position:relative}
+  ul.clean li:before{content:"▸";position:absolute;left:0;color:var(--accent)}
+  ul.clean li b{color:var(--ink);font-weight:600}
+  .src{font-size:11px;color:var(--dim);line-height:1.9}
+  .src b{color:var(--ink)}
+  footer{margin-top:20px;padding-top:14px;border-top:1px solid var(--line);font-size:10.5px;color:var(--dim);line-height:1.9}
+  footer code{color:var(--rna);background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:10px}
+  .disc{background:rgba(255,154,70,.07);border:1px solid rgba(255,154,70,.25);border-radius:10px;padding:11px 13px;font-size:11px;color:var(--dim);line-height:1.7;margin-top:10px}
+  .disc b{color:var(--warn)}
+  .tip{position:fixed;pointer-events:none;background:#05050c;border:1px solid var(--line);border-radius:8px;
+    padding:7px 9px;font-size:10.5px;color:var(--ink);z-index:9;display:none;box-shadow:0 6px 20px rgba(0,0,0,.5);max-width:220px}
+  .tip .m{color:var(--agp);font-size:9.5px}
+  .imgwrap{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+  #img-main{width:100%;display:block;border:1px solid var(--line);border-radius:10px;background:#04040a}
+  .cbtn{background:var(--panel2);color:var(--dim);border:1px solid var(--line);border-radius:7px;
+    padding:5px 9px;font:inherit;font-size:10.5px;cursor:pointer}
+  .cbtn.on{border-color:var(--accent);color:var(--accent)}
+  .cbtn.dna.on{border-color:var(--dna);color:var(--dna)}
+  @media(max-width:860px){.imgwrap{grid-template-columns:1fr}}
+  @media(max-width:860px){.grid2,.grid3,.pipe,.stats{grid-template-columns:1fr 1fr}.pstep .d{display:none}}
+  @media(max-width:560px){.grid2,.grid3,.stats{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="ey">image-based morphological profiling</div>
+    <h1>MorphoProfile · 細胞影像形態分析</h1>
+    <div class="sub">用開源 <b>Cell Painting</b> 細胞影像的「形態指紋」做作用機制（MoA）相似度檢索、候選活性篩選與去偏方法比較。
+      本頁的 UMAP、檢索、指紋與統計<b>皆由真實資料預先計算（離線 Python）</b>，瀏覽器只讀取結果繪圖；附完整資料來源與一鍵可重現程式。</div>
+  </div>
+  <div class="badges">
+    <span class="tag">● 真實資料 · real computed</span>
+    <span class="tag pink">◇ solo / 表徵學習＋檢索</span>
+  </div>
+</header>
+
+<div class="sec-title">01 · 資料一覽（真實）</div>
+<div class="card">
+  <h2>Data at a glance <span class="hint" id="prov-hint"></span></h2>
+  <div class="stats" id="stats"></div>
+  <div class="disc" style="margin-top:12px">
+    <b>關於資料：</b>本互動展示的運算資料為 <b id="dsname"></b>（A549 細胞），其每盤 CellProfiler 形態特徵放在 GitHub 上、免帳號可取。
+    這是與 <b>JUMP-CP</b> 同一套 Cell Painting 分析法與特徵空間的公開資料；正式作品的目標資料集為
+    <b id="target"></b>。兩者皆放在 <a href="https://registry.opendata.aws/cellpainting-gallery/" target="_blank">Cell Painting Gallery（AWS Registry of Open Data）</a>，開源、免費、免 AWS 帳號。
+  </div>
+</div>
+
+<div class="sec-title">02 · 原始資料長什麼樣：真實五通道影像（可互動）</div>
+<div class="card">
+  <h2>真實 Cell Painting 影像 <span class="hint" id="img-src"></span></h2>
+  <div class="controls" id="img-compounds"></div>
+  <div class="imgwrap">
+    <div>
+      <img id="img-main" alt="Cell Painting image"/>
+      <div class="controls" id="img-channels" style="margin-top:10px"></div>
+      <div class="legend" style="margin-top:6px">
+        <span><i style="background:var(--dna)"></i>DNA · 細胞核</span>
+        <span><i style="background:var(--rna)"></i>RNA · 核仁/RNA</span>
+        <span><i style="background:var(--er)"></i>ER · 內質網</span>
+        <span><i style="background:var(--agp)"></i>AGP · 肌動蛋白/膜</span>
+        <span><i style="background:var(--mito)"></i>Mito · 粒線體</span>
+      </div>
+    </div>
+    <div>
+      <div class="kv"><span class="k">化合物</span><span class="v" id="ii-name">—</span></div>
+      <div class="kv"><span class="k">分割到的細胞核數</span><span class="v" id="ii-cells">—</span></div>
+      <div class="kv"><span class="k">核面積中位數 (px)</span><span class="v" id="ii-area">—</span></div>
+      <div class="kv"><span class="k">影像指紋距 DMSO</span><span class="v" id="ii-dist">—</span></div>
+      <h2 style="margin:14px 0 6px">最強驅動特徵 <span class="hint">vs DMSO · Cohen's d</span></h2>
+      <table><tbody id="ii-top"></tbody></table>
+      <h2 style="margin:14px 0 6px">核面積分布 <span class="hint">此化合物 vs DMSO</span></h2>
+      <svg id="ii-hist" class="plot" viewBox="0 0 460 130"></svg>
+    </div>
+  </div>
+  <div class="disc"><b>這些是真實影像</b>（JUMP pilot CPJUMP1，U2OS 細胞，每個化合物 1 個 field，5 個螢光通道 + 3 個明場 z 平面）。
+    「分割」分頁顯示的黃色邊界是<b>本作品自己做的細胞核分割</b>（高斯→Otsu→分水嶺），不是現成標註。
+    通道對應：<span id="img-chnote"></span></div>
+</div>
+
+<div class="sec-title">02b · 影像 → 形態指紋（本作品自建的 CV 管線）</div>
+<div class="grid2">
+  <div class="card">
+    <h2>我的影像特徵指紋 <span class="hint">59 個自建特徵 · 依族群平均 z-score</span></h2>
+    <svg id="ii-fp" class="plot" viewBox="0 0 460 170"></svg>
+    <div class="disc" style="margin-top:10px">流程：<b>讀 5 通道 TIFF → 細胞核分割 → 每顆細胞量化形狀/亮度/紋理 → 對 DMSO 標準化</b>。
+      這是 CellProfiler 的簡化重製版（59 特徵 vs 官方 1,747），目的在展示<b>從影像端到端算出指紋</b>的能力，而非取代 CellProfiler。</div>
+  </div>
+  <div class="card">
+    <h2>驗證：已知機制對得上嗎？ <span class="hint">用我的特徵，不是官方 profile</span></h2>
+    <div class="callout" style="background:linear-gradient(90deg,rgba(90,208,122,.08),transparent);border-color:rgba(90,208,122,.28);border-left-color:var(--good)">
+      <b>AMG900</b>（Aurora 激酶抑制劑）→ 核面積中位數 <b>1389</b> vs DMSO <b>934</b>（<b style="color:var(--good)">+49%</b>）、細胞數僅 40%。
+      符合教科書：Aurora 抑制 → 胞質分裂失敗 → <b>多倍體巨核</b>。<br><br>
+      <b>FK-866</b>（NAMPT 抑制劑）→ 核面積 <b>451</b>（<b style="color:var(--dna)">−52%</b>）、細胞數 38%。
+      符合 NAD 耗竭 → 凋亡 → <b>核濃縮</b>。<br><br>
+      <b>quinidine</b>（離子通道阻斷劑）→ 核面積 928 ≈ DMSO 934、細胞數 99%，<b>幾乎無表型</b>。
+    </div>
+    <div class="disc" style="margin-top:10px">兩個最強表型的核大小變化<b>方向相反、且各自符合已知機制</b>——這是自建管線有效的最直接證據。
+      注意：每個化合物只有 <b>1 個 field</b>，無實驗重複，故僅為<b>案例佐證</b>、非統計推論。</div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>以圖檢索：上傳你自己的影像 <span class="hint">瀏覽器端即時運算 · 簡化版</span></h2>
+  <div class="imgwrap">
+    <div>
+      <div class="controls">
+        <input type="file" id="up-file" accept="image/*"/>
+        <button id="up-demo">用範例影像試試</button>
+      </div>
+      <canvas id="up-canvas" style="width:100%;border:1px solid var(--line);border-radius:10px;background:#04040a"></canvas>
+      <div class="legend" style="margin-top:6px"><span>黃色 = 瀏覽器端偵測到的細胞核輪廓</span></div>
+    </div>
+    <div>
+      <div class="kv"><span class="k">偵測到的細胞核</span><span class="v" id="up-n">—</span></div>
+      <div class="kv"><span class="k">核面積中位數 (px)</span><span class="v" id="up-area">—</span></div>
+      <div class="kv"><span class="k">核佔畫面比例</span><span class="v" id="up-frac">—</span></div>
+      <div class="infer" style="margin-top:12px"><div class="l" id="up-match">◇ 上傳一張影像開始</div>
+        <div class="c" id="up-note">會用 Otsu 門檻 + 連通元件在瀏覽器端分割，與上方 9 個真實化合物的細胞密度/核大小比對。</div></div>
+      <div class="disc" style="margin-top:10px"><b>誠實說明：</b>瀏覽器端只做得到<b>簡化分析</b>（單通道灰階、Otsu、連通元件、3 個統計量），
+        不等於上方 Python 管線的 59 維指紋。真正的分析請用附帶的 <code>image_pipeline.py</code>。</div>
+    </div>
+  </div>
+</div>
+
+<div class="sec-title">03 · 分析流程</div>
+<div class="card">
+  <div class="pipe">
+    <div class="pstep"><div class="k">STEP 1</div><div class="t">五通道影像</div><div class="d">CellProfiler 分割細胞、量化形狀/亮度/紋理/顆粒等 ~1,700 特徵</div></div>
+    <div class="pstep"><div class="k">STEP 2</div><div class="t">形態指紋</div><div class="d">每個 well 壓成一條特徵向量，對 DMSO 對照標準化</div></div>
+    <div class="pstep"><div class="k">STEP 3</div><div class="t">去偏 / 表徵</div><div class="d">特徵選擇＋批次校正（sphering / Harmony），彙整成每擾動的共識指紋</div></div>
+    <div class="pstep"><div class="k">STEP 4</div><div class="t">相似度檢索</div><div class="d">最近鄰比對已知化合物 → 推測未知擾動的 MoA</div></div>
+    <div class="pstep"><div class="k">STEP 5</div><div class="t">候選活性篩選</div><div class="d">與 DMSO 對照分布比較，篩出偏離對照的候選活性（heuristic，非顯著性檢定）</div></div>
+  </div>
+</div>
+
+<div class="sec-title">04 · 表型地圖 × 相似度檢索（真實 · 可互動）</div>
+<div class="grid2">
+  <div class="card">
+    <h2>表型地圖 UMAP <span class="hint">每點=一個真實化合物 · 點擊或搜尋任一藥物</span></h2>
+    <div class="controls">
+      <input id="search" list="druglist" placeholder="搜尋藥物，如 paclitaxel…" autocomplete="off"/>
+      <datalist id="druglist"></datalist>
+      <button id="mode-moa" class="on">依 MoA 上色</button>
+      <button id="mode-hit">依命中上色</button>
+    </div>
+    <canvas id="umap" width="920" height="620"></canvas>
+    <div class="umap-legend" id="umap-legend"></div>
+  </div>
+  <div class="card">
+    <h2>相似度檢索 → MoA 推測 <span class="hint">nearest neighbours by profile</span></h2>
+    <div class="qhead"><span class="qn" id="q-name">paclitaxel</span><span class="qm" id="q-moa"></span></div>
+    <table><thead><tr><th>最近鄰化合物</th><th>相似度</th><th>已知 MoA</th></tr></thead>
+      <tbody id="nb-body"></tbody></table>
+    <div class="infer"><div class="l" id="infer-l">◇ 推測 MoA：—</div><div class="c" id="infer-c"></div></div>
+    <div style="margin-top:12px">
+      <h2 style="margin-bottom:8px">形態指紋 <span class="hint">vs DMSO · 依特徵族群平均 z-score</span></h2>
+      <svg id="fp" class="plot" viewBox="0 0 460 150"></svg>
+    </div>
+  </div>
+</div>
+
+<div class="card callout" style="margin-top:14px" id="insight">
+  <b>影像看得到、標註看不到的機制：</b>以 <b>paclitaxel（紫杉醇）</b> 為查詢，形態最相近的第一名是 <b>KX2-391</b>——資料庫把它標為「Src 抑制劑」，
+  但 KX2-391（tirbanibulin）其實同時是<b>微管聚合抑制劑</b>，會造成與紫杉醇類似的有絲分裂/微管表型；第二名 <b>CYT-997</b> 則是道地的微管抑制劑。
+  這正是 image-based drug discovery 的價值：<b>不需知道分子式，看細胞長相就能指出真正的作用機制</b>，甚至補正不完整的文獻標註。
+</div>
+
+<div class="sec-title">05 · 候選活性篩選 × 方法表現（真實）</div>
+<div class="grid2">
+  <div class="card">
+    <h2>候選活性篩選 <span class="hint">consensus 偏離 DMSO 對照的程度</span></h2>
+    <svg id="hist" class="plot" viewBox="0 0 460 210"></svg>
+    <div class="kv"><span class="k">偏離對照的候選活性比例（candidate active）</span><span class="v" id="hitfrac"></span></div>
+    <div class="kv"><span class="k">門檻（DMSO null 第 95 百分位）</span><span class="v" id="hitthr"></span></div>
+    <div class="disc">以每個化合物的共識指紋與 DMSO 對照中心的 L2 距離為活性分數；門檻取自「只用 DMSO 隨機五孔中位數」的虛無分布第 95 百分位。<b>這是啟發式篩選、不是顯著性檢定</b>（未做 plate-matched null、未白化、無 per-compound p/FDR）；嚴謹版應改用 copairs replicate mAP＋permutation p-value＋FDR。多數 Repurposing-Hub 化合物在 A549、此劑量下活性溫和，候選比例落在兩成上下屬合理。</div>
+  </div>
+  <div class="card">
+    <h2>方法表現 <span class="hint">MoA retrieval · standardized consensus · self-excluded baseline</span></h2>
+    <div class="grid3">
+      <div class="metric"><div class="n" id="m-top1"></div><div class="l">Top-1 MoA<br>命中率</div></div>
+      <div class="metric"><div class="n green" id="m-fold"></div><div class="l">相對隨機<br>倍數</div></div>
+      <div class="metric"><div class="n pink" id="m-top5"></div><div class="l">Top-5<br>召回率</div></div>
+    </div>
+    <div class="disc" style="margin-top:12px"><b>誠實的基準線：</b>在<b>單一批次、未做進階校正</b>的 pilot 標準化特徵上，最近鄰 MoA 命中率約
+      <span id="m-top1b"></span>（約 <span id="m-foldb"></span> 倍於隨機；隨機基準 <span id="m-rand"></span> 已<b>排除自身</b>、依合格查詢的 MoA 類別大小計算）。這個「不高但明顯優於隨機」的數字正是切入點：
+      <b>更強的表徵（自監督 embedding）與經驗證的批次校正</b>有機會把它往上推（見下方方法比較——去偏必須驗證，naive 版在此 pilot 未見改善）。此為與「藥物性質預測」紅海不同的差異化方向。</div>
+  </div>
+</div>
+
+<div class="sec-title">05b · 方法比較：去偏是否有效（真實 · 含 95% CI）</div>
+<div class="grid2">
+  <div class="card">
+    <h2>批次去偏對 MoA 檢索的影響 <span class="hint">同一 IR-mAP · 只換前處理 · bootstrap 95% CI</span></h2>
+    <svg id="mapbars" class="plot" viewBox="0 0 460 240"></svg>
+  </div>
+  <div class="card">
+    <h2>怎麼讀這張圖 <span class="hint">去偏不是免費的</span></h2>
+    <ul class="clean" id="map-notes"></ul>
+    <div class="disc" style="margin-top:10px"><b>關鍵結論：</b><span id="map-concl"></span></div>
+  </div>
+</div>
+
+<div class="sec-title">06 · AI 能加什麼？可落地的功能設計</div>
+<div class="grid3">
+  <div class="card"><h2>表徵學習 embedding</h2><ul class="clean">
+    <li><b>自監督影像編碼器</b>：用 DINO/DINOv2 或 masked autoencoder 直接從五通道影像學 embedding，超越手工 CellProfiler 特徵</li>
+    <li><b>弱監督對比學習</b>：以「同擾動為正對」訓練，讓同 MoA 更靠近</li>
+    <li>產出可直接餵給下游檢索的 128–512 維指紋</li></ul></div>
+  <div class="card"><h2>批次去偏 debiasing</h2><ul class="clean">
+    <li><b>依 subset 不同：</b>JUMP compound=featureselect+Harmony、CRISPR=sphering+Harmony+PCA、ORF=sphering+Harmony（各另有 interpretable 版）</li>
+    <li>以 DMSO 對照做 typical-variation normalization；sphering 需正則化/降維避免放大噪訊</li>
+    <li>雙向驗證：<b>生物保存</b>用 MoA/target 檢索 mAP；<b>批次移除</b>用 kBET / iLISI / plate-label 檢索（kBET 是量批次混合、不是生物保存指標）；並用 source-aware block bootstrap 給 CI</li></ul></div>
+  <div class="card"><h2>檢索與解釋 UX</h2><ul class="clean">
+    <li><b>以圖找相似藥</b>：上傳/選一個擾動，秒回最近鄰與推測 MoA（本頁雛形）</li>
+    <li><b>向量資料庫</b>（FAISS）撐 10 萬級擾動即時檢索</li>
+    <li><b>LLM 助手</b>：把最近鄰、共享 target 與文獻整理成一段機制說明</li></ul></div>
+</div>
+
+<div class="sec-title">07 · 差異化定位與路線圖</div>
+<div class="card"><ul class="clean">
+  <li><b>避開紅海：</b>不做「分子結構 → 性質預測」那種過度 benchmark 的題目，改做<b>表徵學習＋檢索</b>——輸入是細胞影像，不是分子式。</li>
+  <li><b>切入點：</b>形態指紋的 <b>MoA 檢索 / 批次去偏 / 以圖找相似藥</b>；solo 玩家少、CV 技能可直接用、資料真實龐大。</li>
+  <li><b>路線圖：</b>① 本雛形（CellProfiler 特徵＋最近鄰）→ ② 加 sphering/Harmony 去偏、用 mAP 驗證 → ③ 換自監督影像 embedding → ④ 擴到 JUMP cpg0016 全量、建 FAISS 檢索與 LLM 機制解說。</li>
+  <li><b>可展示成果：</b>互動檢索網頁（本頁）、去偏前後的 mAP 改善曲線、MoA 混淆矩陣、案例研究（如紫杉醇 → 微管群）。</li>
+</ul></div>
+
+<div class="sec-title">08 · 資料來源與引用</div>
+<div class="card"><div class="src" id="sources"></div></div>
+
+<footer id="footer"></footer>
+
+<div class="tip" id="tip"></div>
+
+<script id="data" type="application/json">__DATA__</script>
+<script id="imgdata" type="application/json">__IMGDATA__</script>
+<script>
+const DATA = JSON.parse(document.getElementById('data').textContent);
+const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+const PALETTE=['#5a86ff','#ff9a46','#5ad07a','#ff6bd0','#5ae0d6','#c792ea','#ffd166','#ef476f','#06d6a0','#f78c6b'];
+const CLASSES=DATA.classes;
+const colorOf={}; CLASSES.forEach((c,i)=>colorOf[c]=PALETTE[i%PALETTE.length]); colorOf['other']='#5a627e';
+
+/* ---------- stats ---------- */
+(function(){
+  const p=DATA.provenance;
+  $('#prov-hint').textContent=p.demo_dataset;
+  $('#dsname').textContent=p.demo_dataset;
+  $('#target').textContent=p.target_dataset;
+  const S=[['真實 wells',p.wells.toLocaleString()],['化合物（去重）',p.drugs],
+    ['形態特徵','1,747→'+p.features_selected],['複製盤 plates',p.plates],
+    ['DMSO 對照 wells',p.dmso_wells],['目標資料集','JUMP <small>cpg0016</small>']];
+  $('#stats').innerHTML=S.map(([n,l],i)=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`
+    .replace('<div class="n">'+n,'<div class="n">'+ (typeof n==='string'?n:n))).join('');
+  // fix: build properly
+  $('#stats').innerHTML=S.map(([v,l])=>`<div class="stat"><div class="n">${v}</div><div class="l">${l}</div></div>`).join('');
+})();
+
+/* ---------- real image viewer (CPJUMP1) ---------- */
+const IMG = JSON.parse(document.getElementById('imgdata').textContent);
+(function(){
+  const C=IMG.compounds, names=Object.keys(C).sort((a,b)=> a==='DMSO'?-1 : b==='DMSO'?1 : a.localeCompare(b));
+  let cur = names.includes('AMG900')?'AMG900':names[0], chan='composite';
+  $('#img-src').textContent = IMG.source;
+  $('#img-chnote').textContent = IMG.channel_note;
+  const chans=[['composite','合成'],['segmented','分割'],['DNA','DNA'],['RNA','RNA'],['ER','ER'],['AGP','AGP'],['Mito','Mito']];
+  $('#img-compounds').innerHTML = names.map(n=>`<button class="cbtn" data-c="${n}">${n}</button>`).join('');
+  $('#img-channels').innerHTML = chans.map(([k,l])=>`<button class="cbtn" data-ch="${k}">${l}</button>`).join('');
+  function draw(){
+    const d=C[cur];
+    $('#img-main').src = d.images[chan];
+    $$('#img-compounds .cbtn').forEach(b=>b.classList.toggle('on', b.dataset.c===cur));
+    $$('#img-channels .cbtn').forEach(b=>b.classList.toggle('on', b.dataset.ch===chan));
+    $('#ii-name').textContent=cur;
+    $('#ii-cells').textContent=d.n_measured;
+    $('#ii-area').textContent=d.nuc_area_median;
+    $('#ii-dist').textContent=d.dist_from_dmso.toFixed(3);
+    $('#ii-top').innerHTML = (d.top_features||[]).map(t=>{
+      const w=Math.min(60,Math.abs(t.d)*20), col=t.d>0?'#ef476f':'#5a86ff';
+      return `<tr><td style="font-size:10px">${t.f.replace(/_/g,' ')}</td>
+        <td style="width:90px">${t.d>0?'+':''}${t.d} <span class="simbar" style="width:${w}px;background:${col}"></span></td></tr>`;
+    }).join('') || '<tr><td class="k" style="font-size:10.5px">對照組本身</td></tr>';
+    drawHist(); drawFPimg();
+  }
+  function drawHist(){
+    const svg=$('#ii-hist'),W=460,H=130; svg.innerHTML='';
+    const el=(n,a)=>{const e=document.createElementNS('http://www.w3.org/2000/svg',n);for(const k in a)e.setAttribute(k,a[k]);return e;};
+    const A=C[cur].nuc_area, B=C['DMSO'].nuc_area;
+    const mx=Math.max(...A,...B)*1.02, bins=22, x0=8,x1=W-8,y1=H-20,y0=8, bw=(x1-x0)/bins;
+    const hist=v=>{const h=new Array(bins).fill(0);v.forEach(x=>{let b=Math.floor(x/mx*bins);b=Math.max(0,Math.min(bins-1,b));h[b]++;});return h.map(c=>c/v.length);};
+    const ha=hist(A), hb=hist(B), hmax=Math.max(...ha,...hb);
+    for(let b=0;b<bins;b++){
+      const x=x0+b*bw;
+      svg.appendChild(el('rect',{x:x+1,y:y1-hb[b]/hmax*(y1-y0),width:bw-2,height:hb[b]/hmax*(y1-y0),fill:'rgba(130,138,168,.45)'}));
+      svg.appendChild(el('rect',{x:x+1,y:y1-ha[b]/hmax*(y1-y0),width:bw-2,height:ha[b]/hmax*(y1-y0),fill:'rgba(255,107,208,.75)'}));
+    }
+    svg.appendChild(el('text',{x:x0,y:H-6,fill:'rgba(150,160,190,.7)','font-size':8.5})).textContent='← 核面積 (px) →';
+    svg.appendChild(el('rect',{x:W-116,y:y0,width:8,height:8,fill:'rgba(255,107,208,.75)'}));
+    svg.appendChild(el('text',{x:W-105,y:y0+7,fill:'rgba(200,208,230,.8)','font-size':8.5})).textContent=cur;
+    svg.appendChild(el('rect',{x:W-116,y:y0+12,width:8,height:8,fill:'rgba(130,138,168,.45)'}));
+    svg.appendChild(el('text',{x:W-105,y:y0+19,fill:'rgba(200,208,230,.8)','font-size':8.5})).textContent='DMSO';
+  }
+  function drawFPimg(){
+    const svg=$('#ii-fp'),W=460,H=170; svg.innerHTML='';
+    const el=(n,a)=>{const e=document.createElementNS('http://www.w3.org/2000/svg',n);for(const k in a)e.setAttribute(k,a[k]);return e;};
+    const fp=C[cur].fingerprint;
+    // 依類別排序:形狀 → 亮度(核) → 亮度(質) → 紋理
+    const cat=k=> k.startsWith('AreaShape')?0 : (k.indexOf('_Nuc_')>=0?1 : (k.indexOf('_Cyto')>=0?2:3));
+    const CATN=['形狀 Shape','亮度·核 Nuc','亮度·質 Cyto','紋理 Texture'];
+    const keys=Object.keys(fp).sort((a,b)=> cat(a)-cat(b) || a.localeCompare(b));
+    const x0=8,x1=W-8,y0=26,y1=H-26, mid=(y0+y1)/2;
+    const bw=(x1-x0)/keys.length, mx=Math.max(2, ...keys.map(k=>Math.abs(fp[k])));
+    svg.appendChild(el('line',{x1:x0,y1:mid,x2:x1,y2:mid,stroke:'rgba(150,160,210,.3)'}));
+    let prev=-1;
+    keys.forEach((k,i)=>{
+      const v=fp[k], h=Math.abs(v)/mx*((y1-y0)/2), up=v>=0, x=x0+i*bw;
+      svg.appendChild(el('rect',{x:x,y:up?mid-h:mid,width:Math.max(1.2,bw-0.6),height:Math.max(0.8,h),
+        fill:up?'#ef476f':'#5a86ff',opacity:0.35+Math.min(1,Math.abs(v)/mx)*0.65}));
+      const c=cat(k);
+      if(c!==prev){
+        if(i>0) svg.appendChild(el('line',{x1:x-0.5,y1:y0-4,x2:x-0.5,y2:y1+4,stroke:'rgba(150,160,210,.25)','stroke-dasharray':'2 2'}));
+        const t=el('text',{x:x+2,y:H-8,fill:'rgba(200,208,230,.7)','font-size':8}); t.textContent=CATN[c]; svg.appendChild(t);
+        prev=c;
+      }
+    });
+    svg.appendChild(el('text',{x:x0,y:12,fill:'rgba(200,208,230,.85)','font-size':9.5})).textContent=cur+' · '+keys.length+' 個自建特徵';
+    svg.appendChild(el('text',{x:W-8,y:12,fill:'rgba(150,160,190,.7)','font-size':8,'text-anchor':'end'})).textContent='紅=高於 DMSO  藍=低於';
+  }
+  $('#img-compounds').addEventListener('click',e=>{const b=e.target.closest('.cbtn');if(b){cur=b.dataset.c;draw();}});
+  $('#img-channels').addEventListener('click',e=>{const b=e.target.closest('.cbtn');if(b){chan=b.dataset.ch;draw();}});
+  draw();
+})();
+
+/* ---------- client-side upload analyzer (Otsu + connected components) ---------- */
+(function(){
+  const cv=$('#up-canvas'), ctx=cv.getContext('2d');
+  function otsu(h,total){let sum=0;for(let i=0;i<256;i++)sum+=i*h[i];
+    let sB=0,wB=0,best=0,thr=0;
+    for(let t=0;t<256;t++){wB+=h[t];if(!wB)continue;const wF=total-wB;if(!wF)break;
+      sB+=t*h[t];const mB=sB/wB,mF=(sum-sB)/wF,v=wB*wF*(mB-mF)*(mB-mF);
+      if(v>best){best=v;thr=t;}}
+    return thr;}
+  function analyze(img){
+    const S=520; cv.width=S; cv.height=S;
+    ctx.drawImage(img,0,0,S,S);
+    const d=ctx.getImageData(0,0,S,S), p=d.data;
+    const g=new Uint8Array(S*S), h=new Array(256).fill(0);
+    for(let i=0,j=0;i<p.length;i+=4,j++){const v=(p[i]*0.3+p[i+1]*0.59+p[i+2]*0.11)|0;g[j]=v;h[v]++;}
+    const thr=otsu(h,S*S);
+    const bin=new Uint8Array(S*S); for(let i=0;i<g.length;i++) bin[i]=g[i]>thr?1:0;
+    // connected components (BFS), collect area
+    const lab=new Int32Array(S*S).fill(0); let n=0; const areas=[]; const stack=new Int32Array(S*S);
+    for(let i=0;i<bin.length;i++){
+      if(!bin[i]||lab[i])continue;
+      n++;let top=0,area=0;stack[top++]=i;lab[i]=n;
+      while(top){const q=stack[--top];area++;const x=q%S,y=(q/S)|0;
+        for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+          const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=S||ny>=S)continue;
+          const k=ny*S+nx;if(bin[k]&&!lab[k]){lab[k]=n;stack[top++]=k;}}}
+      areas.push(area);
+    }
+    const MIN=40, keep=areas.map((a,i)=>[a,i+1]).filter(([a])=>a>=MIN);
+    const kept=new Set(keep.map(([,l])=>l));
+    // outline kept components
+    const out=ctx.getImageData(0,0,S,S), q=out.data;
+    for(let y=1;y<S-1;y++)for(let x=1;x<S-1;x++){
+      const i=y*S+x; if(!kept.has(lab[i]))continue;
+      if(!kept.has(lab[i-1])||!kept.has(lab[i+1])||!kept.has(lab[i-S])||!kept.has(lab[i+S])){
+        const o=i*4; q[o]=255;q[o+1]=217;q[o+2]=38;q[o+3]=255;}}
+    ctx.putImageData(out,0,0);
+    const A=keep.map(([a])=>a).sort((a,b)=>a-b);
+    const med=A.length?A[(A.length/2)|0]:0;
+    const frac=A.reduce((s,a)=>s+a,0)/(S*S);
+    $('#up-n').textContent=A.length;
+    $('#up-area').textContent=med;
+    $('#up-frac').textContent=(frac*100).toFixed(1)+'%';
+    // compare density/size against the 9 reference compounds (scaled to same field size)
+    const C=IMG.compounds, ref=Object.keys(C);
+    // 縮圖只改變面積(px^2),不改變物件數量 → 只縮放面積
+    const scale=(1080*1080)/(S*S);
+    const myN=A.length, myArea=med*scale;
+    let best=null;
+    ref.forEach(r=>{
+      const dn=Math.log((myN+1)/(C[r].n_measured+1)), da=Math.log((myArea+1)/(C[r].nuc_area_median+1));
+      const dist=Math.sqrt(dn*dn+da*da);
+      if(!best||dist<best.d) best={r,d:dist};
+    });
+    $('#up-match').innerHTML=`◇ 細胞密度/核大小最接近：<b>${best.r}</b>`;
+    $('#up-note').innerHTML=`換算為原始 field 尺度後：約 ${Math.round(myN)} 核、核面積中位數 ≈ ${Math.round(myArea)} px。`
+      +` 這是<b>簡化的二維比對</b>（僅密度與大小），非 59 維指紋檢索。`;
+  }
+  function loadFrom(src){const im=new Image();im.onload=()=>analyze(im);im.crossOrigin='anonymous';im.src=src;}
+  $('#up-file').addEventListener('change',e=>{
+    const f=e.target.files[0]; if(!f)return;
+    const r=new FileReader(); r.onload=()=>loadFrom(r.result); r.readAsDataURL(f);
+  });
+  $('#up-demo').addEventListener('click',()=>{
+    const C=IMG.compounds, ks=Object.keys(C);
+    const pick=ks[Math.floor(Math.random()*ks.length)];
+    $('#up-match').innerHTML='◇ 分析中…';
+    $('#up-note').textContent='範例影像：'+pick+' 的 DNA 通道';
+    loadFrom(C[pick].images.DNA);
+  });
+})();
+
+/* ---------- UMAP explorer ---------- */
+const cv=$('#umap'),ctx=cv.getContext('2d');
+const pts=DATA.drugs;
+let colorMode='moa', selected=pts.find(d=>d.name==='paclitaxel')||pts[0], hiddenClasses=new Set();
+const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
+const xmin=Math.min(...xs),xmax=Math.max(...xs),ymin=Math.min(...ys),ymax=Math.max(...ys);
+const PAD=28;
+function sx(x){return PAD+(x-xmin)/(xmax-xmin)*(cv.width-2*PAD);}
+function sy(y){return PAD+(1-(y-ymin)/(ymax-ymin))*(cv.height-2*PAD);}
+function drawUMAP(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='#0a0a12';ctx.fillRect(0,0,cv.width,cv.height);
+  const nbset=new Set(selected.nb.map(n=>n.name));
+  for(const p of pts){
+    if(colorMode==='moa'&&hiddenClasses.has(p.grp))continue;
+    const isNb=nbset.has(p.name), isSel=p.name===selected.name;
+    let col = colorMode==='moa' ? colorOf[p.grp] : (p.hit?'#5ad07a':'#4a5169');
+    ctx.globalAlpha = (colorMode==='moa'&&p.grp==='other')?0.35:0.85;
+    ctx.beginPath();ctx.arc(sx(p.x),sy(p.y),isSel?6.5:(isNb?4.8:2.7),0,7);
+    ctx.fillStyle=col;ctx.fill();
+    if(isNb&&!isSel){ctx.globalAlpha=1;ctx.lineWidth=1.4;ctx.strokeStyle='rgba(233,236,248,.8)';ctx.stroke();}
+  }
+  // selected ring + neighbours links
+  ctx.globalAlpha=1;
+  for(const n of selected.nb){const t=pts.find(q=>q.name===n.name);if(!t)continue;
+    ctx.strokeStyle='rgba(255,107,208,.35)';ctx.lineWidth=1;ctx.beginPath();
+    ctx.moveTo(sx(selected.x),sy(selected.y));ctx.lineTo(sx(t.x),sy(t.y));ctx.stroke();}
+  ctx.beginPath();ctx.arc(sx(selected.x),sy(selected.y),9,0,7);ctx.strokeStyle='#fff';ctx.lineWidth=1.8;ctx.stroke();
+  ctx.fillStyle='#fff';ctx.font='11px monospace';ctx.fillText(selected.name,sx(selected.x)+12,sy(selected.y)+4);
+}
+function nearestPoint(mx,my){let best=null,bd=1e9;for(const p of pts){if(colorMode==='moa'&&hiddenClasses.has(p.grp))continue;
+  const d=(sx(p.x)-mx)**2+(sy(p.y)-my)**2;if(d<bd){bd=d;best=p;}}return bd<400?best:null;}
+function toCanvas(e){const r=cv.getBoundingClientRect();const sX=cv.width/r.width,sY=cv.height/r.height;
+  const cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left,cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+  return[cx*sX,cy*sY,(e.touches?e.touches[0].clientX:e.clientX),(e.touches?e.touches[0].clientY:e.clientY)];}
+const tip=$('#tip');
+cv.addEventListener('mousemove',e=>{const[mx,my,px,py]=toCanvas(e);const p=nearestPoint(mx,my);
+  if(p){tip.style.display='block';tip.style.left=(px+12)+'px';tip.style.top=(py+12)+'px';
+    tip.innerHTML=`${p.name}<div class="m">${p.moa}</div>${p.hit?'✓ hit':'· 未達門檻'} · act ${p.act}`;cv.style.cursor='pointer';}
+  else{tip.style.display='none';cv.style.cursor='crosshair';}});
+cv.addEventListener('mouseleave',()=>tip.style.display='none');
+cv.addEventListener('click',e=>{const[mx,my]=toCanvas(e);const p=nearestPoint(mx,my);if(p)select(p);});
+cv.addEventListener('touchstart',e=>{const[mx,my]=toCanvas(e);const p=nearestPoint(mx,my);if(p){select(p);e.preventDefault();}},{passive:false});
+
+function select(p){selected=p;$('#search').value=p.name;drawUMAP();renderRetrieval();}
+function renderRetrieval(){
+  $('#q-name').textContent=selected.name;
+  $('#q-moa').textContent='真實標註 MoA：'+selected.moa;
+  $('#nb-body').innerHTML=selected.nb.map(n=>{
+    const w=Math.max(6,Math.round(Math.max(0,n.sim)*60));
+    return `<tr><td>${n.name}</td><td>${n.sim.toFixed(2)} <span class="simbar" style="width:${w}px"></span></td>
+      <td><span class="moa ${n.match?'hit':''}">${n.moa}</span></td></tr>`;}).join('');
+  const correct = selected.pred===selected.moa;
+  $('#infer-l').innerHTML=`◇ 推測 MoA：${selected.pred}`;
+  $('#infer-c').innerHTML=`最近三鄰投票 ${selected.votes}　·　與真實標註 <b style="color:${correct?'#5ad07a':'#ff9a46'}">${correct?'一致 ✓':'不一致'}</b>`+
+    (correct?'':'（形態相近但標註不同——常代表跨機制的表型相似，值得深究）');
+  drawFP();
+}
+/* fingerprint bars */
+function drawFP(){
+  const svg=$('#fp'),W=460,H=150;svg.innerHTML='';
+  const el=(n,a)=>{const e=document.createElementNS('http://www.w3.org/2000/svg',n);for(const k in a)e.setAttribute(k,a[k]);return e;};
+  const types=DATA.fp_types, vals=selected.fp||[];
+  const bw=(W-70)/types.length, x0=54, zmax=Math.max(2,...vals.map(v=>Math.abs(v)));
+  const y0=H/2;
+  svg.appendChild(el('line',{x1:x0,y1:y0,x2:W-6,y2:y0,stroke:'rgba(150,160,210,.3)'}));
+  types.forEach((t,i)=>{const v=vals[i]||0;const h=Math.abs(v)/zmax*(H/2-24);
+    const up=v>=0; const col=up?'#ef476f':'#5a86ff';
+    svg.appendChild(el('rect',{x:x0+i*bw+4,y:up?y0-h:y0,width:bw-8,height:h,rx:2,fill:col,opacity:.85}));
+    const tx=el('text',{x:x0+i*bw+bw/2,y:H-4,fill:'rgba(200,208,230,.7)','font-size':7.5,'text-anchor':'middle'});
+    tx.textContent=t.replace('RadialDistribution','Radial').replace('AreaShape','Shape');svg.appendChild(tx);});
+  svg.appendChild(el('text',{x:6,y:14,fill:'#ef476f','font-size':8})).textContent='高於對照';
+  svg.appendChild(el('text',{x:6,y:H-16,fill:'#5a86ff','font-size':8})).textContent='低於對照';
+}
+/* legend */
+(function(){const box=$('#umap-legend');
+  CLASSES.concat(['other']).forEach(c=>{const s=document.createElement('span');s.dataset.c=c;
+    s.innerHTML=`<i style="background:${colorOf[c]}"></i>${c}`;
+    s.onclick=()=>{if(hiddenClasses.has(c))hiddenClasses.delete(c);else hiddenClasses.add(c);s.classList.toggle('off');drawUMAP();};
+    box.appendChild(s);});
+  const hint=document.createElement('span');hint.style.cssText='color:#828aa8;cursor:default';hint.textContent='（點圖例可篩選）';box.appendChild(hint);
+})();
+$('#mode-moa').onclick=()=>{colorMode='moa';$('#mode-moa').classList.add('on');$('#mode-hit').classList.remove('on');$('#umap-legend').style.display='flex';drawUMAP();};
+$('#mode-hit').onclick=()=>{colorMode='hit';$('#mode-hit').classList.add('on');$('#mode-moa').classList.remove('on');$('#umap-legend').style.display='none';drawUMAP();};
+/* search */
+$('#druglist').innerHTML=pts.map(p=>`<option value="${p.name}">`).join('');
+$('#search').addEventListener('change',e=>{const p=pts.find(q=>q.name.toLowerCase()===e.target.value.toLowerCase());if(p)select(p);});
+
+/* ---------- hit histogram ---------- */
+(function(){
+  const svg=$('#hist'),W=460,H=210;
+  const el=(n,a)=>{const e=document.createElementNS('http://www.w3.org/2000/svg',n);for(const k in a)e.setAttribute(k,a[k]);return e;};
+  const acts=DATA.drugs.map(d=>d.act), nulls=DATA.activity_null, thr=DATA.metrics.thr;
+  const all=acts.concat(nulls); const mx=Math.max(...all),mn=Math.min(...all);
+  const bins=26, x0=8,x1=W-8,y1=H-24,y0=8;
+  const bw=(x1-x0)/bins;
+  function hist(arr){const h=new Array(bins).fill(0);arr.forEach(v=>{let b=Math.floor((v-mn)/(mx-mn)*bins);b=Math.max(0,Math.min(bins-1,b));h[b]++;});return h;}
+  const ha=hist(acts),hn=hist(nulls);const hmax=Math.max(...ha,...hn.map(v=>v* acts.length/nulls.length));
+  const scaleN=acts.length/nulls.length;
+  for(let b=0;b<bins;b++){
+    const xa=x0+b*bw;
+    const hnv=hn[b]*scaleN/hmax*(y1-y0);
+    svg.appendChild(el('rect',{x:xa+1,y:y1-hnv,width:bw-2,height:hnv,fill:'rgba(130,138,168,.35)'}));
+    const hav=ha[b]/hmax*(y1-y0);
+    const xx=mn+(b+0.5)/bins*(mx-mn);
+    svg.appendChild(el('rect',{x:xa+1,y:y1-hav,width:bw-2,height:hav,fill:xx>=thr?'rgba(90,208,122,.8)':'rgba(90,134,255,.7)'}));
+  }
+  const tx=x0+(thr-mn)/(mx-mn)*(x1-x0);
+  svg.appendChild(el('line',{x1:tx,y1:y0,x2:tx,y2:y1,stroke:'#ff9a46','stroke-dasharray':'4 3','stroke-width':1.2}));
+  svg.appendChild(el('text',{x:tx+4,y:y0+10,fill:'#ff9a46','font-size':9})).textContent='hit 門檻';
+  svg.appendChild(el('text',{x:x0,y:H-8,fill:'rgba(150,160,190,.7)','font-size':8.5})).textContent='← 距 DMSO 對照越遠（活性越強）→';
+  svg.appendChild(el('rect',{x:W-150,y:y0,width:9,height:9,fill:'rgba(90,134,255,.7)'}));
+  svg.appendChild(el('text',{x:W-137,y:y0+8,fill:'rgba(200,208,230,.75)','font-size':8.5})).textContent='化合物';
+  svg.appendChild(el('rect',{x:W-150,y:y0+13,width:9,height:9,fill:'rgba(130,138,168,.5)'}));
+  svg.appendChild(el('text',{x:W-137,y:y0+21,fill:'rgba(200,208,230,.75)','font-size':8.5})).textContent='DMSO null';
+})();
+
+/* ---------- metrics ---------- */
+(function(){const m=DATA.metrics;
+  $('#hitfrac').textContent=(m.hit_frac*100).toFixed(0)+'%  ('+m.n_hits+' 化合物)';
+  $('#hitthr').textContent=m.thr;
+  $('#m-top1').textContent=(m.acc1*100).toFixed(0)+'%';
+  $('#m-fold').textContent=m.fold+'×';
+  $('#m-top5').textContent=(m.top5_recall*100).toFixed(0)+'%';
+  $('#m-top1b').textContent=(m.acc1*100).toFixed(0)+'%';
+  $('#m-foldb').textContent=m.fold+'×';
+  $('#m-rand').textContent=(m.random*100).toFixed(1)+'%';
+})();
+
+/* ---------- sources ---------- */
+$('#sources').innerHTML=`
+<b>資料集</b><br>
+• Chandrasekaran, S.N. <i>et al.</i> (2024). <b>Three million images and morphological profiles of cells treated with matched chemical and genetic perturbations.</b> <i>Nature Methods</i> 21, 1114–1121. <a href="https://www.nature.com/articles/s41592-024-02241-6" target="_blank">nature.com/articles/s41592-024-02241-6</a>（bioRxiv 版：<a href="https://www.biorxiv.org/content/10.1101/2023.03.23.534023v1" target="_blank">doi:10.1101/2023.03.23.534023</a>）<br>
+• Weisbart, E. <i>et al.</i> (2024). <b>Cell Painting Gallery: an open resource for image-based profiling.</b> <i>Nature Methods</i> 21, 1775–1778. <a href="https://www.nature.com/articles/s41592-024-02399-z" target="_blank">nature.com/articles/s41592-024-02399-z</a><br>
+• <b>Cell Painting Gallery</b> — AWS Registry of Open Data：<a href="https://registry.opendata.aws/cellpainting-gallery/" target="_blank">registry.opendata.aws/cellpainting-gallery</a>；文件 <a href="https://broadinstitute.github.io/cellpainting-gallery/" target="_blank">broadinstitute.github.io/cellpainting-gallery</a><br>
+• <b>JUMP profiles / metadata</b>：<a href="https://github.com/jump-cellpainting/datasets" target="_blank">github.com/jump-cellpainting/datasets</a>；說明 <a href="https://broadinstitute.github.io/jump_hub/" target="_blank">jump_hub</a><br>
+• 本頁運算資料：<b>LINCS Cell Painting</b> pilot（cpg0004，A549）<a href="https://github.com/broadinstitute/lincs-cell-painting" target="_blank">github.com/broadinstitute/lincs-cell-painting</a>；MoA 標註來自 Broad Drug Repurposing Hub。<br>
+<br><b>方法與工具</b><br>
+• Bray, M.-A. <i>et al.</i> (2016). <b>Cell Painting assay protocol.</b> <i>Nature Protocols</i> 11, 1757–1774. <a href="https://www.nature.com/articles/nprot.2016.105" target="_blank">nprot.2016.105</a><br>
+• Cimini, B.A. <i>et al.</i> (2023). <b>Optimizing the Cell Painting assay.</b> <i>Nature Protocols</i>. <a href="https://www.nature.com/articles/s41596-023-00840-9" target="_blank">s41596-023-00840-9</a><br>
+• Serrano, E. <i>et al.</i> (2025). <b>Reproducible image-based profiling with Pycytominer.</b> <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC10690292/" target="_blank">PMC10690292</a>；<a href="https://github.com/cytomining/pycytominer" target="_blank">github.com/cytomining/pycytominer</a><br>
+• Kalinin, A.A. <i>et al.</i> (2025). <b>A versatile information retrieval framework (copairs / mAP).</b> <i>Nature Communications</i>. <a href="https://www.nature.com/articles/s41467-025-60306-2" target="_blank">s41467-025-60306-2</a>；<a href="https://github.com/cytomining/copairs" target="_blank">github.com/cytomining/copairs</a><br>
+• Way, G.P. <i>et al.</i> (2021). <b>Morphology and gene expression profiling (percent replicating).</b> <i>Cell Systems</i>. <a href="https://www.sciencedirect.com/science/article/pii/S2405471221003331" target="_blank">Cell Systems</a><br>
+• <b>自監督表徵</b>：Doron, M. <i>et al.</i> (2023) <a href="https://www.biorxiv.org/content/10.1101/2023.04.28.538691v2" target="_blank">Self-supervision advances morphological profiling</a>；Kim, V. <i>et al.</i> (2025) <a href="https://www.nature.com/articles/s41598-025-88825-4" target="_blank">Sci. Reports</a><br>
+• <b>批次校正評比</b>：Arevalo, J. <i>et al.</i> (2024) <a href="https://www.nature.com/articles/s41467-024-50613-5" target="_blank">Evaluating batch correction methods for image-based profiling</a><br>`;
+
+/* ---------- footer ---------- */
+$('#footer').innerHTML=`
+<b>取資料（免 AWS 帳號）：</b><code>aws s3 ls --no-sign-request s3://cellpainting-gallery/</code>　·　JUMP profiles 索引：
+<code>jump-cellpainting/datasets/manifests/profile_index.json</code>。<b>務必用預先算好的 profiles（parquet，數百 MB～數 GB），別下載原始影像</b>（cpg0016 影像約 127 TB，2026-08 由 datasets/stats/cpg0016_source_images_size.csv 加總；整個 Gallery 約 688 TB，Weisbart 2024）。<br>
+授權：遵守 Cell Painting Gallery 與 JUMP 的 acceptable-use policy 並註明來源。<br>
+可重現：本頁數字由附帶的 <code>pipeline.py</code> 於真實開源 profiles <b>離線預先計算</b>；鄰居表與頭條指標來自<b>同一套標準化表徵</b>，第三方由 <code>webdata.json</code> 可完全復現（<code>pip install -r requirements.txt && python pipeline.py</code>）。<br>
+<span style="color:var(--warn)">說明：五通道細胞影像為示意繪製；UMAP／指紋／檢索／候選活性／去偏 mAP 為真實資料運算結果。運算資料為 LINCS pilot（cpg0004，與 JUMP 同套 CellProfiler 特徵與流程家族）；換到 JUMP cpg0016 需改用其 S3 profiles 並就 batch/來源重新設計驗證，非「只換 URL」。</span>`;
+
+/* ---------- debias mAP bars (with bootstrap 95% CI) ---------- */
+(function(){
+  const MD=DATA.debias;
+  const order=['raw','sphered','sphered+harmony'].filter(k=>MD.mAP[k]!=null);
+  const labels={'raw':'原始 raw (標準化)','sphered':'球化 sphering (ZCA)','sphered+harmony':'sphering + Harmony(依盤)'};
+  const cols={'raw':'#5ad07a','sphered':'#5a86ff','sphered+harmony':'#ff9a46'};
+  const svg=$('#mapbars'),W=460,H=240;
+  const el=(n,a)=>{const e=document.createElementNS('http://www.w3.org/2000/svg',n);for(const k in a)e.setAttribute(k,a[k]);return e;};
+  const hi=Math.max(...order.map(k=>(MD.ci[k]?MD.ci[k][1]:MD.mAP[k])));const mx=hi*1.25;
+  const x0=88,x1=W-16,y0=16,y1=H-40,bw=(y1-y0)/order.length;
+  for(let g=0;g<=4;g++){const gx=x0+g/4*(x1-x0);svg.appendChild(el('line',{x1:gx,y1:y0,x2:gx,y2:y1,stroke:'rgba(150,160,210,.08)'}));
+    svg.appendChild(el('text',{x:gx,y:y1+14,fill:'rgba(150,160,190,.6)','font-size':8,'text-anchor':'middle'})).textContent=(g/4*mx).toFixed(2);}
+  const sc=v=>x0+v/mx*(x1-x0);
+  order.forEach((k,i)=>{const v=MD.mAP[k];const y=y0+i*bw+6;const w=sc(v)-x0;
+    svg.appendChild(el('rect',{x:x0,y,width:Math.max(1,w),height:bw-16,rx:3,fill:cols[k],opacity:.85}));
+    // CI whisker
+    if(MD.ci[k]){const lo=sc(MD.ci[k][0]),h2=sc(MD.ci[k][1]),cy=y+(bw-16)/2;
+      svg.appendChild(el('line',{x1:lo,y1:cy,x2:h2,y2:cy,stroke:'#e9ecf8','stroke-width':1.2}));
+      svg.appendChild(el('line',{x1:lo,y1:cy-4,x2:lo,y2:cy+4,stroke:'#e9ecf8','stroke-width':1.2}));
+      svg.appendChild(el('line',{x1:h2,y1:cy-4,x2:h2,y2:cy+4,stroke:'#e9ecf8','stroke-width':1.2}));}
+    svg.appendChild(el('text',{x:8,y:y+(bw-16)/2+3,fill:'rgba(220,226,240,.85)','font-size':8})).textContent=labels[k];
+    svg.appendChild(el('text',{x:Math.max(sc(MD.ci[k]?MD.ci[k][1]:v)+6,x0+w+6),y:y+(bw-16)/2+3,fill:'#e9ecf8','font-size':10})).textContent=v.toFixed(3);
+  });
+  svg.appendChild(el('text',{x:x0,y:H-6,fill:'rgba(150,160,190,.6)','font-size':8})).textContent='MoA 檢索 mAP（越高越好，含 bootstrap 95% CI）· A549 pilot';
+  const dv=MD.delta, up=dv.value>0, sig=(dv.ci[0]>0||dv.ci[1]<0);
+  const har=MD.mAP['sphered+harmony'];
+  const sphTxt = up
+    ? `<b>球化(ZCA)小幅提升：</b>mAP ${MD.mAP.raw.toFixed(3)} → ${MD.mAP.sphered.toFixed(3)}，Δ=<b style="color:#5ad07a">+${dv.value}</b>（95% CI ${dv.ci[0]}~${dv.ci[1]}${sig?'，不跨 0':''}）——方向與文獻一致，但幅度小。`
+    : `<b>球化(ZCA)未見提升：</b>mAP ${MD.mAP.raw.toFixed(3)} → ${MD.mAP.sphered.toFixed(3)}，Δ=<b style="color:#ff9a46">${dv.value}</b>（95% CI ${dv.ci[0]}~${dv.ci[1]}）。`;
+  const notes=[
+    `三種表徵用<b>完全相同</b>的 IR-mAP 評估、只換前處理；此處 CI 為 <b>query bootstrap</b>（更嚴謹的 plate-block、雙指標版見 MVP 的 <code>tradeoff</code>）。`,
+    sphTxt,
+    har!=null ? `<b>Harmony(依 plate)</b> 在此(587 維、compound×plate)設定下生物 mAP=${har.toFixed(3)}；但更嚴謹的 <b>50-D 雙指標</b>評估(見 MVP <code>tradeoff</code>)顯示 Harmony 反而<b>改善批次混合、且無可測生物代價</b>——代表其效果<b>對表徵/設定敏感</b>,以 MVP 版為準。` : ``,
+    `<b>可遷移的教訓：</b>去偏效果<b>隨資料清潔度、指標與前處理而變</b>（本頁數據已修掉極端值污染後重算）；必須用一致、且能<b>保存生物訊號</b>的指標驗證，且以真正的批次結構（source）而非 plate 來校正。<b>不能一般化</b>到多來源 JUMP。`
+  ].filter(Boolean);
+  $('#map-notes').innerHTML=notes.map(n=>`<li>${n}</li>`).join('');
+  $('#map-concl').innerHTML=`誠實結論：清理污染後,球化去偏對 MoA 檢索有<b>小幅但方向正確</b>的幫助（Δ=${up?'+':''}${dv.value}）；Harmony 的效果隨表徵而變,須以下方 <b>MVP 的嚴謹雙指標+block CI 版</b>為準（該版顯示 Harmony 改善批次混合、無生物代價）。這正說明批次校正必須<b>嚴謹驗證、匹配真正批次結構</b>——是把作品從 demo 推向可信分析的關鍵。`;
+})();
+
+/* init */
+drawUMAP();renderRetrieval();
+window.addEventListener('resize',drawUMAP);
+</script>
+</body>
+</html>

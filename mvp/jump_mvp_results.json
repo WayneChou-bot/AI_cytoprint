@@ -1,0 +1,59 @@
+{
+  "mode": "cpjump1",
+  "block": "plate",
+  "n_wells": 4102,
+  "results": {
+    "raw": {
+      "biology_mAP": 0.154,
+      "biology_ci": [
+        0.132,
+        0.213
+      ],
+      "batch_mixing": 3.17,
+      "batch_ci": [
+        2.3,
+        3.19
+      ]
+    },
+    "sphered": {
+      "biology_mAP": 0.18,
+      "biology_ci": [
+        0.114,
+        0.24
+      ],
+      "batch_mixing": 1.88,
+      "batch_ci": [
+        1.66,
+        1.87
+      ],
+      "delta_bio_vs_raw": {
+        "value": 0.015,
+        "ci": [
+          -0.057,
+          0.096
+        ],
+        "p_gt0": 0.68
+      }
+    },
+    "sphered+harmony": {
+      "biology_mAP": 0.131,
+      "biology_ci": [
+        0.107,
+        0.219
+      ],
+      "batch_mixing": 1.04,
+      "batch_ci": [
+        1.01,
+        1.11
+      ],
+      "delta_bio_vs_raw": {
+        "value": -0.009,
+        "ci": [
+          -0.066,
+          0.074
+        ],
+        "p_gt0": 0.37
+      }
+    }
+  }
+}

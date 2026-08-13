@@ -1,0 +1,20 @@
+# MorphoProfile — pinned for reproducibility (Python 3.10–3.12)
+# Core pipeline
+pandas==2.2.2
+numpy==1.26.4
+pyarrow==16.1.0
+scikit-learn==1.5.1
+umap-learn==0.5.6
+requests==2.32.3
+harmonypy==0.0.10          # optional: only for the sphered+harmony bar
+# Only needed by run_on_JUMP.py (reading JUMP profiles from S3)
+s3fs==2024.6.1
+polars==1.5.0
+# copairs==0.4.1           # optional: reference mAP / percent-replicating implementation
+
+# 影像管線 images/image_pipeline.py 需要
+scikit-image==0.24.0
+tifffile==2024.7.24
+imagecodecs==2024.6.1     # 讀 LZW 壓縮的 TIFF
+Pillow==10.4.0
+scipy==1.14.0
