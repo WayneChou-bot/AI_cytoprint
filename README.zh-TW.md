@@ -85,8 +85,8 @@ NAD⁺ 耗竭 → 凋亡染色質濃縮),而弱表型的對照藥幾乎不動。
 ## 快速開始
 
 ```bash
-git clone https://github.com/USERNAME/morphoprofile.git
-cd morphoprofile
+git clone https://github.com/WayneChou-bot/AI_cytoprint.git
+cd AI_cytoprint
 
 # 建立環境(擇一)
 conda env create -f environment.yml && conda activate morpho

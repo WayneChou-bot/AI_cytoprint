@@ -96,8 +96,8 @@ engine shows much weaker effects, as expected. Neither result is over-claimed as
 ## Quick start
 
 ```bash
-git clone https://github.com/USERNAME/morphoprofile.git
-cd morphoprofile
+git clone https://github.com/WayneChou-bot/AI_cytoprint.git
+cd AI_cytoprint
 
 # environment (either one)
 conda env create -f environment.yml && conda activate morpho

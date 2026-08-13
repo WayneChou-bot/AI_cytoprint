@@ -101,12 +101,12 @@ expensive work of generating and releasing these datasets.
 If this repository itself is useful to you:
 
 ```bibtex
-@software{morphoprofile,
+@software{morphoprofile_cytoprint,
   author  = {Chou, Wayne},
   title   = {MorphoProfile: image-based morphological profiling and MoA retrieval
              on open Cell Painting data},
   year    = {2026},
-  url     = {https://github.com/USERNAME/morphoprofile},
+  url     = {https://github.com/WayneChou-bot/AI_cytoprint},
   note    = {Code MIT-licensed; redistributed data CC0 1.0 from LINCS Cell Painting
              and the JUMP-Cell Painting Consortium}
 }
