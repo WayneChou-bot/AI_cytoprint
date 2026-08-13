@@ -1,0 +1,98 @@
+cff-version: 1.2.0
+title: "MorphoProfile: image-based morphological profiling and MoA retrieval on open Cell Painting data"
+message: >-
+  If you use this software, please cite it using the metadata below.
+  Please also cite the upstream datasets it is built on — they are listed in
+  CITATION.md and reproduced under "references" here.
+type: software
+authors:
+  - family-names: Chou
+    given-names: Wayne
+    alias: WayneChou-bot
+repository-code: "https://github.com/WayneChou-bot/AI_cytoprint"
+abstract: >-
+  An end-to-end, reproducible pipeline that infers a compound's mechanism of action
+  from cell morphology rather than molecular structure. Raw 5-channel Cell Painting
+  images are segmented and reduced to morphological fingerprints; pre-computed
+  CellProfiler profiles drive nearest-neighbour MoA retrieval over 561 compounds;
+  and batch-correction methods are compared with dual metrics (biology retention and
+  batch mixing) using plate-block bootstrap confidence intervals. All results are
+  computed offline from public, openly licensed data.
+keywords:
+  - cell painting
+  - bioimage analysis
+  - image-based profiling
+  - morphological profiling
+  - mechanism of action
+  - drug discovery
+  - computer vision
+  - batch correction
+  - reproducible research
+license: MIT
+date-released: "2026-08-13"
+references:
+  - type: article
+    title: >-
+      Three million images and morphological profiles of cells treated with
+      matched chemical and genetic perturbations
+    authors:
+      - family-names: Chandrasekaran
+        given-names: Srinivas Niranj
+      - family-names: Carpenter
+        given-names: Anne E.
+      - family-names: Singh
+        given-names: Shantanu
+    journal: Nature Methods
+    volume: 21
+    start: 1114
+    end: 1121
+    year: 2024
+    doi: 10.1038/s41592-024-02241-6
+    notes: "Source of the CPJUMP1 images and JUMP-Target profiles used here."
+  - type: data
+    title: >-
+      broadinstitute/lincs-cell-painting: Full release of LINCS Cell Painting dataset
+    authors:
+      - family-names: Natoli
+        given-names: Ted
+      - family-names: Way
+        given-names: Gregory
+      - family-names: Carpenter
+        given-names: Anne E.
+      - family-names: Singh
+        given-names: Shantanu
+      - family-names: Subramanian
+        given-names: Aravind
+    year: 2021
+    doi: 10.5281/zenodo.5008187
+    notes: "Source of the LINCS profiles that drive the main analysis page."
+  - type: article
+    title: "Cell Painting Gallery: an open resource for image-based profiling"
+    authors:
+      - family-names: Weisbart
+        given-names: Erin
+      - family-names: Cimini
+        given-names: Beth A.
+      - family-names: Singh
+        given-names: Shantanu
+    journal: Nature Methods
+    volume: 21
+    start: 1775
+    end: 1778
+    year: 2024
+    doi: 10.1038/s41592-024-02399-z
+  - type: article
+    title: >-
+      Cell Painting, a high-content image-based assay for morphological profiling
+      using multiplexed fluorescent dyes
+    authors:
+      - family-names: Bray
+        given-names: Mark-Anthony
+      - family-names: Carpenter
+        given-names: Anne E.
+    journal: Nature Protocols
+    volume: 11
+    start: 1757
+    end: 1774
+    year: 2016
+    doi: 10.1038/nprot.2016.105
