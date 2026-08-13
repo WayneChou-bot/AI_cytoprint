@@ -1,5 +1,5 @@
 {
-  "dataset": "LINCS Cell Painting batch1 (cpg0004) ¡P single-centre ¡÷ block = plate",
+  "dataset": "LINCS Cell Painting batch1 (cpg0004) Â· single-centre â†’ block = plate",
   "n_wells": 18000,
   "n_plates": 50,
   "n_features": 587,

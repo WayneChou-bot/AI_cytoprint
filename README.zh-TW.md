@@ -9,7 +9,7 @@
 
 所有數字都由本 repo 的程式從公開資料**離線計算**,再嵌入單一自足的 `index.html`。**沒有任何虛構或示意數據。**
 
-![權衡圖](mvp/tradeoff.png)
+![權衡圖](mvp/tradeoff.zh-TW.png)
 
 ---
 
