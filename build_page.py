@@ -11,7 +11,13 @@ if imgp.exists():
 else:
     imgdata = '{"compounds":{},"source":"(not generated: run images/image_pipeline.py first)","channel_note":"","feature_names":[]}'
     print("WARNING: images/out/webimages.json missing -> image section will be empty. Run: python images/image_pipeline.py")
-html = tpl.replace("__DATA__", data).replace("__IMGDATA__", imgdata)
+jp = Path("mvp/jump_mvp_results.json")
+if jp.exists():
+    jumpdata = jp.read_text(encoding="utf-8").replace("</", "<\\/")
+else:
+    jumpdata = '{}'
+    print("WARNING: mvp/jump_mvp_results.json missing -> JUMP section will be empty. Run: python mvp/jump_mvp.py <repo>")
+html = tpl.replace("__DATA__", data).replace("__IMGDATA__", imgdata).replace("__JUMPDATA__", jumpdata)
 Path("web").mkdir(exist_ok=True)
 Path("web/MorphoProfile.html").write_text(html, encoding="utf-8")
 Path("index.html").write_text(html, encoding="utf-8")      # repo-root entry for Vercel / static hosting

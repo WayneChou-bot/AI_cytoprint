@@ -24,11 +24,14 @@ crowded niche for an individual developer and uses computer-vision skills direct
 
 The work is split into three layers, and the README is honest about what each one proves.
 
-| Layer | What it does | Scale |
-|---|---|---|
-| **1. Image → fingerprint** (`images/`) | Real 5-channel images → my own nucleus segmentation → 59 morphological features → z-score vs DMSO | 9 compounds, 701 single cells |
-| **2. Profile analysis** (`pipeline.py`) | Pre-computed CellProfiler profiles → cleaning → consensus → UMAP, MoA retrieval, candidate-activity screen, de-biasing comparison | 19,200 wells, 561 compounds, 587 features |
-| **3. Rigorous evaluation** (`mvp/`) | Does batch correction actually help? Dual metrics + plate-block bootstrap + paired ΔCI | LINCS (50 plates) and real JUMP-Target (16 plates, 4,102 wells) |
+| Layer | What it does | Scale | Evidence level |
+|---|---|---|---|
+| **1. Image → fingerprint** (`images/`) | Real 5-channel images → my own nucleus segmentation → 59 morphological features → z-score vs DMSO | 9 compounds, 701 single cells | **Case study** — demonstrates the pipeline works and is biologically plausible. No statistical validation. |
+| **2. Profile analysis** (`pipeline.py`) | Pre-computed CellProfiler profiles → cleaning → consensus → UMAP, MoA retrieval, candidate-activity screen | 19,200 wells, 561 compounds, 587 features | **Main quantitative result** — reproducible, third-party verifiable. |
+| **3. Batch-correction evaluation** (`mvp/`) | Dual metrics + plate-block bootstrap + paired ΔCI | LINCS (50 plates); JUMP-Target (16 plates, 4,102 wells) | LINCS: supporting quantitative. JUMP: **exploratory** — plate is confounded with condition (see below). |
+
+Being explicit about this is deliberate: not every section is a formal validation, and saying so is what
+separates a trustworthy analysis from a demo dressed up as one.
 
 Layer 2 uses profiles rather than pixels because that is the field's standard division of labour —
 the Broad Institute already ran CellProfiler across all of JUMP and published the outputs. Downloading
@@ -52,12 +55,15 @@ Using **my own 59 features** (not the official CellProfiler profiles), on real C
 
 The two strongest phenotypes move nuclear size in **opposite directions**, each consistent with its
 known mechanism (Aurora inhibition → failed cytokinesis → polyploid nuclei; NAD⁺ depletion →
-apoptotic chromatin condensation), while the weak-phenotype control barely moves.
+apoptotic chromatin condensation), while the weak-phenotype control barely moves. Suggestively, the
+fingerprint is not purely a cell-death readout either: dexamethasone loses few cells yet ranks third,
+its signature dominated by a drop in mitochondrial signal — consistent with glucocorticoid-receptor
+action on mitochondria.
 
-The fingerprint is also **not merely a cell-death proxy**: phenotype strength correlates only
-moderately with density change (Pearson r = +0.63, p = 0.09, n = 8), and dexamethasone ranks 3rd
-while losing few cells — its signature is dominated by a **specific drop in mitochondrial signal**
-(Cohen's d = −4.09), consistent with glucocorticoid-receptor action on mitochondria.
+> **Scope of this layer:** an *illustrative end-to-end case study* using **one field per compound**.
+> It demonstrates pipeline functionality and biological plausibility — **not statistical validation or
+> generalization**. The individual cells are observations within a single field, not independent
+> experimental replicates, so no significance testing is performed or implied.
 
 ### MoA retrieval on 561 compounds
 
@@ -73,17 +79,58 @@ representations and validated batch correction.
 Correction is evaluated on **two axes simultaneously** (you can trivially win one by wrecking the
 other), in a common 50-D space, with a **plate-block bootstrap** and **paired** Δ confidence intervals.
 
-Real JUMP-Target result (`mvp/jump_mvp_results.json`, 4,102 wells, block = plate):
+**Exploratory** JUMP-Target result (`mvp/jump_mvp_results.json`, 16 plates, 4,102 treated wells).
+
+In CPJUMP1 **all 16 compound plates each contain a single cell line and a single timepoint**, so plate is
+perfectly nested within `cell_line × timepoint` (verified in the metadata). A plate-block correction
+therefore cannot be separated from erasing genuine U2OS-vs-A549 and 24 h-vs-48 h differences — and a
+*pooled* MoA retrieval cannot detect that loss, because it pools across those very conditions.
+
+Pooled (confounded — reported for reference only):
 
 | Representation | Biology (MoA mAP, 95 % CI) | Batch mixing (→1 is better) |
 |---|---|---|
 | raw | 0.154 [0.132, 0.213] | 3.17 [2.30, 3.19] |
 | sphered (ZCA) | 0.180 [0.114, 0.240] | 1.88 [1.66, 1.87] |
-| sphered + Harmony | 0.131 [0.107, 0.219] | **1.04 [1.01, 1.11]** |
+| sphered + Harmony | 0.131 [0.107, 0.219] | 1.04 [1.01, 1.11] |
 
-Correction clearly removes batch structure on JUMP (3.17 → 1.04, essentially fully mixed) with **no
-measurable biology cost** — every paired Δ CI crosses zero. On the single-centre LINCS pilot the same
-engine shows much weaker effects, as expected. Neither result is over-claimed as significant.
+> **Harmony improved plate mixing, while pooled MoA retrieval showed no measurable loss. Because plate
+> is confounded with cell line and timepoint in CPJUMP1, this result cannot distinguish removal of
+> technical variation from removal of condition-specific biology.**
+
+**Condition-signal retention** measures exactly that (kNN same-label enrichment on the same embeddings;
+1.0 means the difference is gone):
+
+| Representation | Cell line | Timepoint |
+|---|---|---|
+| raw | 1.62 | 1.28 |
+| sphered (ZCA) | 1.21 | 1.10 |
+| sphered + Harmony | 1.11 | **1.02** |
+
+Harmony's near-perfect batch mixing (3.17 → 1.04) coincides with the timepoint signal being **essentially
+erased** (1.28 → 1.02) and the cell-line signal being more than halved in excess-over-chance terms
+(1.62 → 1.11). A large share of that "batch removal" was paid for with real biology.
+
+**Stratified** — evaluated within each `cell_line × timepoint` stratum, where plate *is* a genuine technical
+replicate (4 plates, ~1,000 wells, 260 compounds, 26 eligible MoA queries each):
+
+| Stratum | raw mAP | Δ sphered (95 % CI) | Δ sphered+Harmony (95 % CI) | raw batch mixing |
+|---|---|---|---|---|
+| A549-24h | 0.159 | −0.027 [−0.123, +0.062] | −0.051 [−0.131, +0.068] | 1.46 |
+| A549-48h | 0.187 | +0.006 [−0.046, +0.035] | 0.000 [−0.047, +0.047] | 1.11 |
+| U2OS-24h | 0.154 | −0.011 [−0.045, +0.043] | −0.005 [−0.072, +0.075] | 1.19 |
+| U2OS-48h | 0.166 | +0.001 [−0.042, +0.093] | +0.002 [−0.041, +0.082] | 1.59 |
+
+Two things follow. First, **the within-condition batch effect is modest**: raw batch mixing is 1.11–1.59,
+not the 3.17 seen when pooling — so most of the apparent batch effect *was* the confounded biological
+condition. That is what one expects from CPJUMP1, a single-source, single-site pilot. Second, **all eight
+Δ intervals cross zero**: at this design and sample size (26 eligible queries per stratum, 104 in total)
+neither correction produces a measurable biological benefit, nor clear harm. The intervals are wide and
+cannot rule out moderate effects — "not detectable here" is not "does not work".
+
+`mvp/jump_mvp.py` performs all three steps automatically: it detects and reports the nesting, runs the
+condition-retention diagnostic, and evaluates within strata, writing `"status": "exploratory"` and an
+explicit `caveat` field into the results JSON.
 
 > A note on scientific integrity: an earlier version of this project reported the *opposite*
 > conclusion about batch correction. That was traced to a data-quality bug — a winsorization step was
@@ -189,8 +236,12 @@ git lfs pull --include="load_data_csv/2020_11_04_CPJUMP1/BR00117010/load_data.cs
 
 ## Limitations
 
-- **One field per compound, no experimental replicates** in the image layer — the mechanism table is
-  illustrative case evidence, not a statistical result.
+- **One field per compound, no experimental replicates** in the image layer — the mechanism table is a
+  sanity check on known compounds, not a statistical result. Cells within a field are not independent
+  replicates; phenotype strength is not shown to be independent of cell density or cell death.
+- **The JUMP-Target comparison is exploratory**: plate is perfectly confounded with `cell_line × timepoint`
+  in CPJUMP1, so the pooled result cannot separate technical from condition-specific variation. Use the
+  stratified output instead.
 - **59 hand-built features** are a simplified re-implementation of CellProfiler (1,747 features),
   intended to demonstrate the end-to-end capability, not to replace it.
 - The in-browser upload feature runs a **simplified analysis** (single grayscale channel, Otsu,

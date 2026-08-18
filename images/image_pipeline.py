@@ -113,10 +113,22 @@ def segment_nuclei(dna):
     lab = drop_small(lab, MIN_NUC_AREA)
     return measure.label(segmentation.clear_border(lab))   # 去掉貼邊被切斷的核
 
+def cyto_territory(lab, radius=18):
+    """每顆細胞專屬的細胞質環。
+
+    先前版本用 `dilation(所有核) & ~所有核` 取一個**全域**環帶,在密集視野中一顆細胞的
+    「細胞質」會混進鄰近細胞的訊號。改為:把環帶內每個像素指派給**最近的細胞核**,
+    讓每顆細胞擁有互斥的細胞質territory(等同對距離變換做最近鄰分割)。
+    """
+    dist, inds = ndi.distance_transform_edt(lab == 0, return_indices=True)
+    nearest = lab[inds[0], inds[1]]
+    ring = (dist > 0) & (dist <= radius)
+    return np.where(ring, nearest, 0)
+
 def features_per_cell(chs, lab):
     """每顆細胞一列特徵:形狀 + 各通道核內/質內亮度 + 紋理。"""
     dna = chs["DNA"]
-    cytoall = morphology.dilation(lab > 0, morphology.disk(18)) & ~(lab > 0)
+    cyto = cyto_territory(lab)
     lap = {st: ndi.laplace(filters.gaussian(stretch(a), 1)) for st, a in chs.items()}
     rows, cols = [], None
     for p in measure.regionprops(lab, intensity_image=dna):
@@ -124,7 +136,7 @@ def features_per_cell(chs, lab):
         cy, cx = p.centroid
         sl = (slice(max(0, int(cy)-45), int(cy)+45), slice(max(0, int(cx)-45), int(cx)+45))
         nm = lab[sl] == p.label
-        cm = cytoall[sl]
+        cm = cyto[sl] == p.label            # 互斥領域:不含鄰近細胞
         if nm.sum() < 50 or cm.sum() < 50: continue
         f = {"AreaShape_Area": p.area, "AreaShape_Perimeter": p.perimeter,
              "AreaShape_Eccentricity": p.eccentricity, "AreaShape_Solidity": p.solidity,
@@ -193,13 +205,16 @@ def main():
         idx = np.argsort(-np.abs(d))[:6]
         web[name]["top_features"] = [{"f": cols[i], "d": round(float(d[i]), 2)} for i in idx]
     # 以「我的影像指紋」互相檢索:最相似的化合物
-    names = [n for n in web]
+    # DMSO 的指紋依定義是零向量(自己對自己標準化),cosine 對零向量無意義 → 排除在排序之外
+    names = [n for n in web if n != "DMSO"]
     V = np.array([[web[n]["fingerprint"][c] for c in cols] for n in names])
     Vn = V/(np.linalg.norm(V, axis=1, keepdims=True) + 1e-9)
     S = Vn @ Vn.T; np.fill_diagonal(S, -2)
     for i, n in enumerate(names):
         order = np.argsort(-S[i])[:3]
         web[n]["neighbors"] = [{"name": names[j], "sim": round(float(S[i][j]), 2)} for j in order]
+    if "DMSO" in web:
+        web["DMSO"]["neighbors"] = []       # 對照組本身:無最近鄰(零向量)
     payload = {"channel_map": {f"ch{k}": v for k, v in CH.items()},
                "channel_note": "ch5=DNA 與 ch1=Mito 為實證確認;ch2/3/4 依波長順序推定(見程式檔頭)",
                "channel_note_en": "ch5=DNA and ch1=Mito determined empirically; ch2/3/4 inferred from acquisition wavelength order (see module docstring)",

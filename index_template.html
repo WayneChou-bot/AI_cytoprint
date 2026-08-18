@@ -187,7 +187,12 @@
     <e><b>These are real images</b> (JUMP pilot CPJUMP1, U2OS cells, one field per compound, 5 fluorescence
     channels + 3 brightfield z-planes). The yellow outlines on the "Segmented" tab are <b>my own nucleus
     segmentation</b> (Gaussian → Otsu → watershed), not pre-supplied annotations. Channel mapping: </e>
-    <span id="img-chnote"></span></div>
+    <span id="img-chnote"></span>
+    <z><br>方法補充：每顆細胞的細胞質環採<b>互斥領域</b>（環帶像素指派給最近的核），避免密集區域混入鄰近細胞訊號；
+    DMSO 的指紋依定義為零向量，已<b>排除在最近鄰排序之外</b>。</z>
+    <e><br>Method notes: each cell's cytoplasmic ring uses an <b>exclusive territory</b> (ring pixels assigned to the
+    nearest nucleus) so crowded fields do not mix in neighbouring cells' signal; DMSO's fingerprint is a zero vector by
+    construction and is therefore <b>excluded from nearest-neighbour ranking</b>.</e></div>
 </div>
 
 <div class="sec-title"><z>02b · 影像 → 形態指紋（本作品自建的 CV 管線）</z><e>02b · Image → fingerprint (my own CV pipeline)</e></div>
@@ -203,16 +208,21 @@
       <b>end-to-end image→fingerprint capability</b>, not to replace it.</e></div>
   </div>
   <div class="card">
-    <h2><z>驗證：已知機制對得上嗎？</z><e>Validation: does it recover known biology?</e> <span class="hint"><z>用我的特徵，不是官方 profile</z><e>using my features, not official profiles</e></span></h2>
+    <h2><z>案例佐證：已知機制對得上嗎？</z><e>Sanity check: does it match known biology?</e> <span class="hint"><z>用我的特徵，不是官方 profile</z><e>using my features, not official profiles</e></span></h2>
     <div class="callout" style="background:linear-gradient(90deg,rgba(90,208,122,.08),transparent);border-color:rgba(90,208,122,.28);border-left-color:var(--good)">
       <span id="valid-text"></span>
     </div>
     <div class="disc" style="margin-top:10px">
-      <z>兩個最強表型的核大小變化<b>方向相反、且各自符合已知機制</b>——這是自建管線有效的最直接證據。
-      注意：每個化合物只有 <b>1 個 field</b>、無實驗重複，故僅為<b>案例佐證</b>、非統計推論。</z>
+      <z>兩個最強表型的核大小變化<b>方向相反、且各自符合已知機制</b>——作為管線可運作的 sanity check。
+      <b>定位：這是案例式的端到端展示</b>，每個化合物只有 <b>1 個 field</b>；證明的是<b>管線能運作、生物學說得通</b>，
+      <b>不是統計驗證、也不宣稱可泛化</b>。圖中的「細胞」是同一 field 內的觀測值，<b>不是獨立實驗重複</b>，
+      因此不做也不隱含顯著性檢定；也尚未證明表型強度獨立於細胞密度或細胞死亡。</z>
       <e>The two strongest phenotypes move nuclear size in <b>opposite directions, each matching its known mechanism</b> —
-      the most direct evidence that the hand-built pipeline works. Caveat: only <b>one field per compound</b> with no
-      experimental replicates, so this is <b>illustrative case evidence, not a statistical claim</b>.</e></div>
+      a sanity check that the hand-built pipeline behaves sensibly. <b>Scope: this is an illustrative end-to-end case
+      study</b> with <b>one field per compound</b>. It demonstrates <b>pipeline functionality and biological
+      plausibility — not statistical validation or generalization</b>. The cells shown are observations within a single
+      field, <b>not independent experimental replicates</b>, so no significance testing is performed or implied; nor is
+      phenotype strength shown to be independent of cell density or cell death.</e></div>
   </div>
 </div>
 
@@ -342,6 +352,26 @@
   </div>
 </div>
 
+<div class="sec-title"><z>05c · JUMP-Target 分層驗證：當實驗設計本身是混雜的</z><e>05c · JUMP-Target stratified validation: when the design itself is confounded</e></div>
+<div class="card">
+  <h2><z>為什麼不能直接對 plate 做批次校正</z><e>Why you cannot just batch-correct by plate</e> <span class="hint"><z>探索性 · CPJUMP1 真實資料</z><e>exploratory · real CPJUMP1 data</e></span></h2>
+  <div id="jump-intro" style="font-size:12px;color:var(--dim);line-height:1.9"></div>
+</div>
+<div class="grid2">
+  <div class="card">
+    <h2><z>條件訊號保留度：校正抹掉了什麼</z><e>Condition-signal retention: what correction erased</e> <span class="hint"><z>1.0 = 該生物差異已被完全抹平</z><e>1.0 = that biological difference is fully erased</e></span></h2>
+    <svg id="retplot" class="plot" viewBox="0 0 460 250"></svg>
+  </div>
+  <div class="card">
+    <h2><z>分層後：每個 cell line × timepoint 內各自評估</z><e>Stratified: evaluated within each cell line × timepoint</e> <span class="hint"><z>plate 此時才是真正的技術重複</z><e>only here is plate a genuine technical replicate</e></span></h2>
+    <div style="max-height:300px;overflow:auto"><table id="strattbl"></table></div>
+  </div>
+</div>
+<div class="card">
+  <ul class="clean" id="jump-notes"></ul>
+  <div class="disc" style="margin-top:10px"><b><z>關鍵結論：</z><e>Bottom line: </e></b><span id="jump-concl"></span></div>
+</div>
+
 <div class="sec-title"><z>06 · AI 能加什麼？可落地的功能設計</z><e>06 · What AI adds: deployable feature design</e></div>
 <div class="grid3">
   <div class="card"><h2><z>表徵學習 embedding</z><e>Representation learning</e></h2><ul class="clean">
@@ -375,6 +405,7 @@
 
 <script id="data" type="application/json">__DATA__</script>
 <script id="imgdata" type="application/json">__IMGDATA__</script>
+<script id="jumpdata" type="application/json">__JUMPDATA__</script>
 <script>
 const DATA = JSON.parse(document.getElementById('data').textContent);
 const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
@@ -810,8 +841,8 @@ function renderDebias(){
     L(`三種表徵用<b>完全相同</b>的 IR-mAP 評估、只換前處理；此處 CI 為 <b>query bootstrap</b>（更嚴謹的 plate-block、雙指標版見 repo 的 <code>mvp/</code>）。`,
       `All three representations are scored with the <b>identical</b> IR-mAP — only the preprocessing differs. The CIs here are a <b>query bootstrap</b>; the stricter plate-block, dual-metric version lives in <code>mvp/</code> in the repository.`),
     sphTxt,
-    har!=null ? L(`<b>Harmony(依 plate)</b> 在此設定（587 維、compound×plate）下生物 mAP=${har.toFixed(3)}；但更嚴謹的 <b>50 維雙指標</b>評估顯示 Harmony 能<b>大幅改善批次混合、且無可測生物代價</b>——代表其效果<b>對表徵與設定敏感</b>，應以雙指標版為準。`,
-                  `<b>Harmony (by plate)</b> reaches a biology mAP of ${har.toFixed(3)} in this setup (587-D, compound×plate). But the stricter <b>50-D dual-metric</b> evaluation shows Harmony <b>substantially improves batch mixing at no measurable biology cost</b> — its effect is <b>sensitive to the representation and setup</b>, so the dual-metric result is the one to trust.`) : ``,
+    har!=null ? L(`<b>Harmony(依 plate)</b> 在此設定（587 維、compound×plate）下生物 mAP=${har.toFixed(3)}；50 維雙指標版則顯示它<b>改善批次混合</b>——代表效果<b>對表徵與設定敏感</b>。<b>但在 JUMP-Target 上必須特別小心</b>：CPJUMP1 的 plate 與 cell line、timepoint 完全混雜，「改善混合」無法與「抹掉條件生物學」區分，該結果僅屬<b>探索性</b>——分層後的完整分析見下方 <b>05c</b>。`,
+                  `<b>Harmony (by plate)</b> reaches a biology mAP of ${har.toFixed(3)} here (587-D, compound×plate); the 50-D dual-metric version shows it <b>improving batch mixing</b> — so the effect is <b>sensitive to representation and setup</b>. <b>On JUMP-Target this needs a caveat</b>: in CPJUMP1 plate is perfectly confounded with cell line and timepoint, so "better mixing" cannot be separated from "erasing condition-specific biology". That result is <b>exploratory only</b> — the full stratified analysis is in <b>05c</b> below.`) : ``,
     L(`<b>可遷移的教訓：</b>去偏效果<b>隨資料清潔度、指標與前處理而變</b>（本頁數據已修掉極端值污染後重算）；必須用一致、且能<b>同時衡量生物保存與批次移除</b>的指標驗證，並以真正的批次結構（source）而非 plate 來校正。<b>不能一般化</b>到多來源 JUMP。`,
       `<b>The transferable lesson:</b> the benefit of de-biasing <b>depends on data cleanliness, metric and preprocessing</b> (the numbers here were recomputed after fixing an extreme-value contamination bug). It must be validated with a consistent metric that measures <b>both biology retention and batch removal</b>, and correction should target the real batch structure (source), not the plate. These results <b>do not generalize</b> to multi-source JUMP.`)
   ].filter(Boolean);
@@ -824,6 +855,139 @@ RENDER.push(renderDebias);
 
 /* init */
 RENDER.push(()=>{ drawUMAP(); renderRetrieval(); });
+
+/* ---------- 05c: JUMP-Target stratified validation (real CPJUMP1) ---------- */
+const JUMP = JSON.parse(document.getElementById('jumpdata').textContent);
+const METHODS = [['raw',['原始 (raw)','Raw']],['sphered',['ZCA sphering','ZCA sphering']],['sphered+harmony',['sphering + Harmony','sphering + Harmony']]];
+const fmt = (v,d=3)=> v==null ? '—' : Number(v).toFixed(d);
+const ciTxt = c => c ? `[${fmt(c[0])}, ${fmt(c[1])}]` : '';
+
+function renderJumpIntro(){
+  const el=$('#jump-intro'); if(!el||!JUMP.n_wells) return;
+  const S=JUMP.stratified||{}, keys=Object.keys(S);
+  const pooledMix = JUMP.pooled_confounded?.raw?.batch_mixing;
+  const mixes = keys.map(k=>S[k].results.raw.batch_mixing);
+  const lo=Math.min(...mixes), hi=Math.max(...mixes);
+  const nStrat=keys.length, nPl=keys.length?S[keys[0]].n_plates:0, nCmp=keys.length?S[keys[0]].n_compounds:0;
+  el.innerHTML = L(
+   `在 <b>CPJUMP1</b> 的 ${JUMP.n_plates} 個化合物 plate 中，<b>每個 plate 只含一種細胞株、也只含一個時間點</b>——
+    plate 完全<b>巢狀</b>於 (cell line × timepoint)。這代表「對 plate 做批次校正」在數學上<b>無法</b>與
+    「抹掉細胞株／時間點的真實生物差異」區分開來。<br><br>
+    合併全部 ${JUMP.n_wells.toLocaleString()} 個處理孔時，批次混合指標高達 <b>${fmt(pooledMix,2)}</b>，看起來批次效應極嚴重；
+    但把資料<b>分層</b>成 ${nStrat} 組（每組同細胞株、同時間點，各 ${nPl} 個 plate、${nCmp} 個化合物）後，
+    plate 之間的批次效應只剩 <b>${fmt(lo,2)}–${fmt(hi,2)}</b>。
+    <b>換句話說：合併分析裡看到的「巨大批次效應」，主要其實是被混雜進去的生物條件差異。</b>`,
+   `Across the ${JUMP.n_plates} compound plates in <b>CPJUMP1</b>, <b>each plate contains exactly one cell line and one
+    timepoint</b> — plate is perfectly <b>nested</b> within (cell line × timepoint). A plate-block batch correction therefore
+    <b>cannot</b> be separated from erasing genuine cell-line / timepoint biology.<br><br>
+    Pooling all ${JUMP.n_wells.toLocaleString()} treated wells, the batch-mixing metric reaches <b>${fmt(pooledMix,2)}</b>,
+    which looks like a severe batch effect. But after <b>stratifying</b> into ${nStrat} groups (same cell line and timepoint,
+    ${nPl} plates and ${nCmp} compounds each), plate-to-plate batch effect drops to just <b>${fmt(lo,2)}–${fmt(hi,2)}</b>.
+    <b>In other words: most of the "huge batch effect" in the pooled analysis was the confounded biological condition.</b>`);
+}
+RENDER.push(renderJumpIntro);
+
+function drawRetention(){
+  const svg=$('#retplot'); if(!svg||!JUMP.condition_retention) return;
+  const R=JUMP.condition_retention;
+  const W=460,H=250,ml=44,mr=14,mt=26,mb=52;
+  const conds=[['cell_line',['細胞株','Cell line']],['timepoint',['時間點','Timepoint']]];
+  const vals=METHODS.flatMap(([m])=>conds.map(([c])=>R[m]?.[c]??1));
+  const ymax=Math.max(1.8,Math.ceil(Math.max(...vals)*10)/10+.1), ymin=0.9;
+  const y=v=>mt+(H-mt-mb)*(1-(v-ymin)/(ymax-ymin));
+  const bw=(W-ml-mr)/(METHODS.length*conds.length+METHODS.length*.6);
+  const cols={cell_line:'var(--dna)',timepoint:'var(--agp)'};
+  let s='';
+  for(let t=Math.ceil(ymin*10)/10;t<=ymax+1e-9;t+=0.2){
+    const yy=y(t);
+    s+=`<line x1="${ml}" x2="${W-mr}" y1="${yy}" y2="${yy}" stroke="rgba(150,160,210,.10)"/>`;
+    s+=`<text x="${ml-7}" y="${yy+3.5}" fill="#828aa8" font-size="9" text-anchor="end">${t.toFixed(1)}</text>`;
+  }
+  const y1=y(1.0);
+  s+=`<line x1="${ml}" x2="${W-mr}" y1="${y1}" y2="${y1}" stroke="#ff6bd0" stroke-width="1.2" stroke-dasharray="4 3"/>`;
+  let x=ml+bw*.3;
+  METHODS.forEach(([m,lab])=>{
+    const x0=x;
+    conds.forEach(([c])=>{
+      const v=R[m]?.[c]??1, yy=y(v);
+      s+=`<rect x="${x}" y="${yy}" width="${bw*.86}" height="${Math.max(0,H-mb-yy)}" rx="2.5" fill="${cols[c]}" opacity=".82"/>`;
+      s+=`<text x="${x+bw*.43}" y="${yy-4}" fill="#e9ecf8" font-size="9" text-anchor="middle" font-variant-numeric="tabular-nums">${fmt(v,2)}</text>`;
+      x+=bw;
+    });
+    s+=`<text x="${x0+bw}" y="${H-mb+15}" fill="#828aa8" font-size="9" text-anchor="middle">${L(lab[0],lab[1])}</text>`;
+    x+=bw*.6;
+  });
+  conds.forEach(([c,lab],i)=>{
+    const lx=ml+i*150;
+    s+=`<rect x="${lx}" y="${H-22}" width="9" height="9" rx="2" fill="${cols[c]}" opacity=".82"/>`;
+    s+=`<text x="${lx+14}" y="${H-14}" fill="#828aa8" font-size="9.5">${L(lab[0],lab[1])}</text>`;
+  });
+  s+=`<text x="${ml-40}" y="${mt-6}" fill="#828aa8" font-size="8.5">${L('kNN 同標籤富集度','kNN same-label enrichment')}</text>`;
+  s+=`<line x1="${ml+232}" x2="${ml+252}" y1="${H-18}" y2="${H-18}" stroke="#ff6bd0" stroke-width="1.2" stroke-dasharray="4 3"/>`;
+  s+=`<text x="${ml+257}" y="${H-14}" fill="#828aa8" font-size="9.5">${L('1.0 = 訊號抹平','1.0 = erased')}</text>`;
+  svg.innerHTML=s;
+}
+RENDER.push(drawRetention);
+
+function renderStratTable(){
+  const el=$('#strattbl'); const S=JUMP.stratified; if(!el||!S) return;
+  let h=`<thead><tr><th>${L('分層','Stratum')}</th><th>${L('方法','Method')}</th><th>${L('生物 mAP','Biology mAP')}</th><th>${L('Δ vs raw (95% CI)','Δ vs raw (95% CI)')}</th><th>${L('批次混合','Batch mixing')}</th></tr></thead><tbody>`;
+  Object.entries(S).forEach(([name,st])=>{
+    METHODS.forEach(([m,lab],i)=>{
+      const r=st.results[m]; if(!r) return;
+      const d=r.delta_bio_vs_raw;
+      const dTxt = d ? `${d.value>0?'+':''}${fmt(d.value)} <span style="color:var(--dim)">${ciTxt(d.ci)}</span>` : '<span style="color:var(--dim)">—</span>';
+      const crosses = d && d.ci[0]<=0 && d.ci[1]>=0;
+      h+=`<tr>${i===0?`<td rowspan="${METHODS.length}" style="vertical-align:top"><b>${name}</b><br><span style="color:var(--dim);font-size:9.5px">${st.n_wells} wells · ${st.n_plates} plates<br>${st.n_evaluable_queries} ${L('合格查詢','eligible queries')}</span></td>`:''}`;
+      h+=`<td style="color:var(--dim)">${L(lab[0],lab[1])}</td>`;
+      h+=`<td style="font-variant-numeric:tabular-nums">${fmt(r.biology_mAP)}</td>`;
+      h+=`<td style="font-variant-numeric:tabular-nums;${crosses?'color:var(--dim)':''}">${dTxt}</td>`;
+      h+=`<td style="font-variant-numeric:tabular-nums">${fmt(r.batch_mixing,2)}</td></tr>`;
+    });
+  });
+  el.innerHTML=h+'</tbody>';
+}
+RENDER.push(renderStratTable);
+
+function renderJumpNotes(){
+  const ul=$('#jump-notes'), cc=$('#jump-concl'); if(!ul||!JUMP.condition_retention) return;
+  const R=JUMP.condition_retention, S=JUMP.stratified||{};
+  const P=JUMP.pooled_confounded||{};
+  const deltas=Object.values(S).flatMap(st=>METHODS.slice(1).map(([m])=>st.results[m]?.delta_bio_vs_raw).filter(Boolean));
+  const allCross=deltas.every(d=>d.ci[0]<=0 && d.ci[1]>=0);
+  const nQ=Object.values(S).reduce((a,st)=>a+st.n_evaluable_queries,0);
+  const items=[
+   [`<b>混雜的代價可以量化。</b>合併分析中 Harmony 把批次混合從 ${fmt(P.raw?.batch_mixing,2)} 壓到 ${fmt(P['sphered+harmony']?.batch_mixing,2)}（近乎完美混合），看起來成效卓著；
+     但同一組 embedding 的<b>條件訊號保留度</b>顯示，時間點的生物差異同時從 ${fmt(R.raw?.timepoint,2)} 掉到 ${fmt(R['sphered+harmony']?.timepoint,2)}——
+     幾乎完全被抹平。細胞株訊號也從 ${fmt(R.raw?.cell_line,2)} 降到 ${fmt(R['sphered+harmony']?.cell_line,2)}。<b>「批次移除」的成績有相當部分是刪掉真生物換來的。</b>`,
+    `<b>The cost of confounding is measurable.</b> In the pooled analysis Harmony drives batch mixing from ${fmt(P.raw?.batch_mixing,2)} down to ${fmt(P['sphered+harmony']?.batch_mixing,2)} (near-perfect mixing), which looks like a triumph.
+     But <b>condition-signal retention</b> on the same embeddings shows the timepoint difference collapsing from ${fmt(R.raw?.timepoint,2)} to ${fmt(R['sphered+harmony']?.timepoint,2)} — essentially erased — and the cell-line signal falling from ${fmt(R.raw?.cell_line,2)} to ${fmt(R['sphered+harmony']?.cell_line,2)}.
+     <b>A large share of that "batch removal" was bought by deleting real biology.</b>`],
+   [`<b>分層之後，批次問題本身變小了。</b>在同細胞株、同時間點內比較 4 個 plate，原始批次混合只有 ${fmt(Math.min(...Object.values(S).map(s=>s.results.raw.batch_mixing)),2)}–${fmt(Math.max(...Object.values(S).map(s=>s.results.raw.batch_mixing)),2)}
+     （1.0 為完全混合），遠低於合併時的 ${fmt(P.raw?.batch_mixing,2)}。這是 CPJUMP1 <b>單一 source、單一 site</b> 的預期結果——真正棘手的跨 source 批次效應，本資料集看不到。`,
+    `<b>Stratifying shrinks the problem itself.</b> Comparing the 4 plates within one cell line and timepoint, raw batch mixing is only ${fmt(Math.min(...Object.values(S).map(s=>s.results.raw.batch_mixing)),2)}–${fmt(Math.max(...Object.values(S).map(s=>s.results.raw.batch_mixing)),2)}
+     (1.0 = fully mixed), far below the pooled ${fmt(P.raw?.batch_mixing,2)}. That is what one expects from CPJUMP1's <b>single source, single site</b> design — the genuinely hard cross-source batch effect is simply not present in this dataset.`],
+   [allCross
+     ? `<b>在分層內，去偏沒有可測得的生物效益。</b>${Object.keys(S).length} 個分層 × 2 種校正方法，<b>全部 ${deltas.length} 個 Δ 的 95% CI 都跨過 0</b>——既測不到改善，也測不到明確損害。點估計最負的是 A549-24h 的 sphering+Harmony（${fmt(S['A549-24h']?.results['sphered+harmony']?.delta_bio_vs_raw?.value)}）。`
+     : `<b>分層內的 Δ 見下表。</b>`,
+    allCross
+     ? `<b>Within strata, de-biasing yields no measurable biological benefit.</b> Across ${Object.keys(S).length} strata × 2 correction methods, <b>all ${deltas.length} Δ confidence intervals cross zero</b> — neither improvement nor clear harm is detectable. The most negative point estimate is sphering+Harmony on A549-24h (${fmt(S['A549-24h']?.results['sphered+harmony']?.delta_bio_vs_raw?.value)}).`
+     : `<b>Per-stratum Δ values are in the table above.</b>`],
+   [`<b>誠實的統計功效說明。</b>每個分層只有 ${Object.values(S)[0]?.n_evaluable_queries ?? '—'} 個合格查詢（MoA 類別需 ≥2 個化合物），合計 ${nQ} 個；CI 因此偏寬，<b>不足以排除中等幅度的效應</b>。此處的結論是「在此設計與此樣本量下測不到效益」，不是「去偏無效」。`,
+    `<b>An honest power statement.</b> Each stratum has only ${Object.values(S)[0]?.n_evaluable_queries ?? '—'} eligible queries (a MoA class needs ≥2 compounds), ${nQ} in total, so the intervals are wide and <b>cannot rule out moderate effects</b>. The claim here is "no benefit detectable at this design and sample size", not "de-biasing does not work".`]
+  ];
+  ul.innerHTML=items.map(([z,e])=>`<li>${L(z,e)}</li>`).join('');
+  cc.innerHTML=L(
+   `批次校正的價值<b>取決於實驗設計</b>。當批次與生物條件混雜時，漂亮的批次混合分數可能只是把生物訊號一起刪掉的副產品；
+    唯一站得住腳的做法，是在<b>條件內</b>評估，並<b>同時</b>回報生物保存與批次移除兩個軸。本節結果標記為
+    <b>探索性（exploratory）</b>，僅適用於 CPJUMP1 這個單一 source 的 pilot，<b>不可外推</b>到多來源的 JUMP cpg0016。`,
+   `The value of batch correction <b>depends on the experimental design</b>. When batch is confounded with biological condition,
+    a beautiful batch-mixing score can be a by-product of deleting the biology along with it. The only defensible procedure is to
+    evaluate <b>within</b> condition and report biology retention and batch removal <b>together</b>. These results are marked
+    <b>exploratory</b>: they apply to CPJUMP1, a single-source pilot, and <b>do not extrapolate</b> to multi-source JUMP cpg0016.`);
+}
+RENDER.push(renderJumpNotes);
+
 $('#lang-en').onclick=()=>{ LANG='en'; applyLang(); };
 $('#lang-zh').onclick=()=>{ LANG='zh'; applyLang(); };
 applyLang();

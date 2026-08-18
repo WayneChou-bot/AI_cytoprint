@@ -119,6 +119,35 @@ def sanitize(df, feat):
     print(f"  sanitize: selected {len(sel)} clean features (max|x|={np.abs(df[sel].values).max():.1f})")
     return sel, df
 
+def condition_retention(emb, labels, k=25, subs=3000, seed=0):
+    """校正後還分得出這個條件嗎? kNN 同標籤富集度(1.0=已完全抹平, 越高=訊號保留越多)。
+
+    用來檢查:對 plate 做校正時,因為 plate 巢狀於 cell_line×timepoint,
+    有沒有連帶把細胞株/時間點這種**真實生物差異**也一起移除。
+    """
+    from sklearn.neighbors import NearestNeighbors
+    from collections import Counter
+    rng = np.random.RandomState(seed)
+    emb = np.ascontiguousarray(emb); labels = np.asarray(labels)
+    idx = rng.choice(len(emb), min(subs, len(emb)), replace=False)
+    E, Lb = emb[idx], labels[idx]
+    nn = NearestNeighbors(n_neighbors=min(k+1, len(E))).fit(E)
+    _, ind = nn.kneighbors(E)
+    same = np.mean([(Lb[ind[i, 1:]] == Lb[i]).mean() for i in range(len(E))])
+    cnt = Counter(Lb); S = len(Lb)
+    exp = sum(c*(c-1) for c in cnt.values())/(S*(S-1)) if S > 1 else np.nan
+    return float(same/exp) if exp and exp > 0 else np.nan
+
+def run_block(trt, feat, neg, block_col, label=""):
+    """在一組樣本上跑三種表徵 + 雙指標評估。"""
+    reps = build_reps(trt[feat].values,
+                      neg[feat].values if len(neg) else trt[feat].values,
+                      trt[block_col].values)
+    res = evaluate(reps,
+                   trt["Metadata_broad_sample"].values if "Metadata_broad_sample" in trt else trt.index.values,
+                   trt["moa1"].values, trt[block_col].values)
+    return reps, res
+
 def main():
     if MODE == "cpjump1":
         df = load_cpjump1(resolve_repo())
@@ -128,17 +157,71 @@ def main():
     feat0 = [c for c in df.columns if not c.startswith("Metadata") and c not in ("moa",)]
     feat, df = sanitize(df, feat0)
     df["moa1"] = df["moa"].map(lambda m: m.split("|")[0].strip() if isinstance(m, str) else None)
-    block = {"plate": "Metadata_Assay_Plate_Barcode", "cell_line": "Metadata_cell_line",
-             "batch": "Metadata_Assay_Plate_Barcode"}[BATCH_COL]
+    PLATE = "Metadata_Assay_Plate_Barcode"
     trt = df[df["Metadata_pert_type"] == "trt"].reset_index(drop=True)
     neg = df[df["Metadata_pert_type"] != "trt"]
-    reps = build_reps(trt[feat].values, neg[feat].values if len(neg) else trt[feat].values, trt[block].values)
-    res = evaluate(reps, trt["Metadata_broad_sample"].values if "Metadata_broad_sample" in trt else trt.index.values,
-                   trt["moa1"].values, trt[block].values)
+
+    # ── 確認並揭露混雜結構 ───────────────────────────────────────────────
+    nest = df.groupby(PLATE).agg(cl=("Metadata_cell_line", "nunique"), tp=("Metadata_timepoint", "nunique"))
+    confounded = bool((nest["cl"] == 1).all() and (nest["tp"] == 1).all())
+    print(f"\n  plate 巢狀於 (cell_line × timepoint): {confounded}"
+          f"  ({int((nest['cl']==1).sum())}/{len(nest)} plates 單一細胞株, "
+          f"{int((nest['tp']==1).sum())}/{len(nest)} 單一時間點)")
+    if confounded:
+        print("  → 對 plate 校正無法與『移除細胞株/時間點的生物差異』區分;以下改採分層評估。")
+
+    out = {"mode": MODE, "n_wells": int(len(trt)), "n_plates": int(trt[PLATE].nunique()),
+           "plate_confounded_with_cell_line_and_timepoint": confounded,
+           "status": "exploratory",
+           "caveat": ("In CPJUMP1 every compound plate contains a single cell line and a single timepoint, "
+                      "so plate is perfectly nested within cell_line x timepoint. A pooled plate-block analysis "
+                      "cannot separate removal of technical variation from removal of condition-specific biology. "
+                      "The stratified results below evaluate within each condition, where plate is a genuine "
+                      "technical replicate.")}
+
+    # ── 1. pooled(僅供對照,已知混雜)────────────────────────────────────
+    print("\n=== POOLED (plate as block — CONFOUNDED, reported for reference only) ===")
+    reps_pool, res_pool = run_block(trt, feat, neg, PLATE)
+    out["pooled_confounded"] = res_pool
+
+    # ── 2. 條件訊號保留:校正前後還分得出 cell line / timepoint 嗎 ──────
+    print("\n=== CONDITION-SIGNAL RETENTION (pooled embeddings; 1.0 = signal erased) ===")
+    cond = {}
+    for name, emb in reps_pool.items():
+        cond[name] = {
+            "cell_line": round(condition_retention(emb, trt["Metadata_cell_line"].values), 2),
+            "timepoint": round(condition_retention(emb, trt["Metadata_timepoint"].values), 2)}
+        print(f"  {name:16s} cell_line={cond[name]['cell_line']:6.2f}   timepoint={cond[name]['timepoint']:6.2f}")
+    out["condition_retention"] = cond
+    print("  (>1 = 該條件的生物差異仍在;接近 1 = 已被校正抹平)")
+
+    # ── 3. 分層評估:在每個 (cell_line, timepoint) 內,plate 才是純技術批次 ──
+    print("\n=== STRATIFIED (within each cell_line x timepoint; plate = pure technical block) ===")
+    strata = {}
+    for (cl, tp), sub in trt.groupby(["Metadata_cell_line", "Metadata_timepoint"]):
+        key = f"{cl}-{tp}h"
+        sub = sub.reset_index(drop=True)
+        sub_neg = neg[(neg["Metadata_cell_line"] == cl) & (neg["Metadata_timepoint"] == tp)]
+        cmp_moa = sub.dropna(subset=["moa1"]).drop_duplicates("Metadata_broad_sample")
+        vc = cmp_moa["moa1"].value_counts()
+        n_eval = int(cmp_moa["moa1"].map(vc).ge(2).sum())   # MoA 類別內至少 2 個化合物才可評估
+        print(f"\n  --- {key}: wells={len(sub)}, plates={sub[PLATE].nunique()}, "
+              f"compounds={sub['Metadata_broad_sample'].nunique()}, evaluable queries={n_eval} ---")
+        if sub[PLATE].nunique() < 2:
+            print("     (少於 2 個 plate,無法做 plate-block bootstrap — 跳過)"); continue
+        try:
+            _, res = run_block(sub, feat, sub_neg, PLATE)
+            strata[key] = {"n_wells": int(len(sub)), "n_plates": int(sub[PLATE].nunique()),
+                           "n_compounds": int(sub["Metadata_broad_sample"].nunique()),
+                           "n_evaluable_queries": n_eval, "results": res}
+        except Exception as e:
+            print("     FAILED:", repr(e)[:160])
+    out["stratified"] = strata
+
     import json
-    json.dump({"mode": MODE, "block": BATCH_COL, "n_wells": int(len(trt)), "results": res},
-              open(Path(__file__).resolve().parent/"jump_mvp_results.json", "w", encoding="utf-8"), ensure_ascii=False, indent=2)
-    print("wrote jump_mvp_results.json")
+    dst = Path(__file__).resolve().parent/"jump_mvp_results.json"
+    json.dump(out, open(dst, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+    print(f"\nwrote {dst.name}  (status=exploratory; 分層結果為主,pooled 僅供對照)")
 
 if __name__ == "__main__":
     main()

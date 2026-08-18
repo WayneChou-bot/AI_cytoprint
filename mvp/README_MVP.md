@@ -65,3 +65,77 @@ python make_tradeoff.py     # 產 tradeoff 圖（改讀 jump_mvp_results.json �
 - `jump_mvp.py` — 同引擎的 JUMP-Target/JUMP-MOA loader（你的電腦/Colab 執行）
 - `make_tradeoff.py` — 由結果 JSON 畫雙指標權衡圖
 - `mvp_results.json` / `tradeoff.html` / `tradeoff.png` — 產物
+
+---
+
+## ⚠ JUMP-Target 結果的重要限制（exploratory）
+
+在 CPJUMP1 中,**16 個 compound plate 每一盤都只含單一 cell line 與單一 timepoint**
+(已由 `datasplits/cpjump1_metadata.csv` 驗證:16/16)。因此 **plate 完全巢狀於 `cell_line × timepoint`**。
+
+這代表:
+
+> **Harmony improved plate mixing, while pooled MoA retrieval showed no measurable loss. Because plate
+> is confounded with cell line and timepoint in CPJUMP1, this result cannot distinguish removal of
+> technical variation from removal of condition-specific biology.**
+
+pooled 的 MoA 檢索之所以「沒測到損失」,正是因為它本來就跨條件彙總——它偵測不到細胞株/時間點訊號被抹掉。
+
+### 已加入的修正(`jump_mvp.py`)
+
+1. **自動偵測並揭露巢狀結構**,若偵測到就明講 pooled 結果不可用於因果解讀。
+2. **條件訊號保留診斷** `condition_retention()`:校正前後,還分不分得出 cell line 與 timepoint。
+   數值 →1 表示該條件的差異已被抹平。在注入已知條件效應的合成資料上,此指標正確地顯示
+   raw 保留訊號(~1.9)而 sphering/Harmony 抹平至 ~0.95–0.99,證明診斷有效。
+3. **分層評估**:在四個 `cell_line × timepoint` 分層內各自評估,此時 plate 才是純技術重複。
+4. 輸出 JSON 標記 `"status": "exploratory"` 並附 `caveat` 欄位。
+
+### 真實結果(CPJUMP1,16 盤、4,102 個處理孔)
+
+**合併分析(混雜,僅供對照)**
+
+| 表徵 | 生物 MoA mAP(95% CI) | 批次混合(→1 越好) | Δbio vs raw |
+|---|---|---|---|
+| raw | 0.154 [0.132, 0.213] | 3.17 [2.30, 3.19] | — |
+| sphered(ZCA) | 0.180 [0.114, 0.240] | 1.88 [1.66, 1.87] | +0.015 [−0.057, +0.096] |
+| sphered + Harmony | 0.131 [0.107, 0.219] | 1.04 [1.01, 1.11] | −0.009 [−0.066, +0.074] |
+
+**條件訊號保留度(1.0 = 該生物差異已被抹平)**
+
+| 表徵 | 細胞株 | 時間點 |
+|---|---|---|
+| raw | 1.62 | 1.28 |
+| sphered(ZCA) | 1.21 | 1.10 |
+| sphered + Harmony | 1.11 | **1.02** |
+
+這一張表就是整個 MVP 最重要的產出:Harmony 把批次混合從 3.17 壓到 1.04(近乎完美),
+但同一組 embedding 的時間點訊號同時從 1.28 掉到 1.02——**幾乎完全被抹平**。
+「批次移除」的漂亮分數,有相當部分是刪掉真生物換來的。
+
+**分層評估(plate 此時才是純技術重複;每層 4 盤、約 1,000 wells、260 化合物、26 個合格查詢)**
+
+| 分層 | wells | raw mAP | Δ sphered | Δ sphered+Harmony | raw 批次混合 |
+|---|---|---|---|---|---|
+| A549-24h | 1,039 | 0.159 | −0.027 [−0.123, +0.062] | −0.051 [−0.131, +0.068] | 1.46 |
+| A549-48h | 1,040 | 0.187 | +0.006 [−0.046, +0.035] | 0.000 [−0.047, +0.047] | 1.11 |
+| U2OS-24h | 983 | 0.154 | −0.011 [−0.045, +0.043] | −0.005 [−0.072, +0.075] | 1.19 |
+| U2OS-48h | 1,040 | 0.166 | +0.001 [−0.042, +0.093] | +0.002 [−0.041, +0.082] | 1.59 |
+
+**誠實解讀**:
+
+1. **條件內的批次效應其實不大**——raw 批次混合 1.11–1.59,遠低於合併時的 3.17。
+   合併分析裡看到的「嚴重批次效應」,主要是被混雜進去的生物條件差異。
+   這符合 CPJUMP1 是單一 source、單一 site pilot 的預期;真正棘手的跨 source 批次效應,此資料集看不到。
+2. **八個 Δ 的 95% CI 全部跨過 0**——在此設計與樣本量下,兩種校正都測不到生物效益,也測不到明確損害。
+   點估計最負的是 A549-24h 的 sphering+Harmony(−0.051)。
+3. **統計功效必須誠實揭露**——每層僅 26 個合格查詢(MoA 類別需 ≥2 個化合物),合計 104 個,
+   CI 因此偏寬,不足以排除中等幅度的效應。結論是「在此測不到效益」,不是「去偏無效」。
+
+### 結論等級
+
+| 區塊 | 定位 |
+|---|---|
+| LINCS（主 pipeline） | 主要量化結果,可重現、第三方可驗證 |
+| LINCS（`mvp/` 雙指標） | 輔助性量化結果 |
+| JUMP-Target | **探索性**去偏比較,承認條件混雜;應以分層輸出為準 |
+| 影像層 | 案例式端到端展示,非統計驗證 |

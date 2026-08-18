@@ -1,8 +1,11 @@
 {
   "mode": "cpjump1",
-  "block": "plate",
   "n_wells": 4102,
-  "results": {
+  "n_plates": 16,
+  "plate_confounded_with_cell_line_and_timepoint": true,
+  "status": "exploratory",
+  "caveat": "In CPJUMP1 every compound plate contains a single cell line and a single timepoint, so plate is perfectly nested within cell_line x timepoint. A pooled plate-block analysis cannot separate removal of technical variation from removal of condition-specific biology. The stratified results below evaluate within each condition, where plate is a genuine technical replicate.",
+  "pooled_confounded": {
     "raw": {
       "biology_mAP": 0.154,
       "biology_ci": [
@@ -53,6 +56,262 @@
           0.074
         ],
         "p_gt0": 0.37
+      }
+    }
+  },
+  "condition_retention": {
+    "raw": {
+      "cell_line": 1.62,
+      "timepoint": 1.28
+    },
+    "sphered": {
+      "cell_line": 1.21,
+      "timepoint": 1.1
+    },
+    "sphered+harmony": {
+      "cell_line": 1.11,
+      "timepoint": 1.02
+    }
+  },
+  "stratified": {
+    "A549-24h": {
+      "n_wells": 1039,
+      "n_plates": 4,
+      "n_compounds": 260,
+      "n_evaluable_queries": 26,
+      "results": {
+        "raw": {
+          "biology_mAP": 0.159,
+          "biology_ci": [
+            0.117,
+            0.181
+          ],
+          "batch_mixing": 1.46,
+          "batch_ci": [
+            1.04,
+            1.46
+          ]
+        },
+        "sphered": {
+          "biology_mAP": 0.09,
+          "biology_ci": [
+            0.037,
+            0.194
+          ],
+          "batch_mixing": 1.15,
+          "batch_ci": [
+            1.04,
+            1.15
+          ],
+          "delta_bio_vs_raw": {
+            "value": -0.027,
+            "ci": [
+              -0.123,
+              0.062
+            ],
+            "p_gt0": 0.38
+          }
+        },
+        "sphered+harmony": {
+          "biology_mAP": 0.061,
+          "biology_ci": [
+            0.037,
+            0.202
+          ],
+          "batch_mixing": 0.98,
+          "batch_ci": [
+            0.96,
+            1.02
+          ],
+          "delta_bio_vs_raw": {
+            "value": -0.051,
+            "ci": [
+              -0.131,
+              0.068
+            ],
+            "p_gt0": 0.25
+          }
+        }
+      }
+    },
+    "A549-48h": {
+      "n_wells": 1040,
+      "n_plates": 4,
+      "n_compounds": 260,
+      "n_evaluable_queries": 26,
+      "results": {
+        "raw": {
+          "biology_mAP": 0.187,
+          "biology_ci": [
+            0.135,
+            0.212
+          ],
+          "batch_mixing": 1.11,
+          "batch_ci": [
+            1.02,
+            1.11
+          ]
+        },
+        "sphered": {
+          "biology_mAP": 0.207,
+          "biology_ci": [
+            0.131,
+            0.232
+          ],
+          "batch_mixing": 1.11,
+          "batch_ci": [
+            1.04,
+            1.11
+          ],
+          "delta_bio_vs_raw": {
+            "value": 0.006,
+            "ci": [
+              -0.046,
+              0.035
+            ],
+            "p_gt0": 0.59
+          }
+        },
+        "sphered+harmony": {
+          "biology_mAP": 0.198,
+          "biology_ci": [
+            0.128,
+            0.207
+          ],
+          "batch_mixing": 0.96,
+          "batch_ci": [
+            0.96,
+            0.99
+          ],
+          "delta_bio_vs_raw": {
+            "value": 0.0,
+            "ci": [
+              -0.047,
+              0.047
+            ],
+            "p_gt0": 0.52
+          }
+        }
+      }
+    },
+    "U2OS-24h": {
+      "n_wells": 983,
+      "n_plates": 4,
+      "n_compounds": 260,
+      "n_evaluable_queries": 26,
+      "results": {
+        "raw": {
+          "biology_mAP": 0.154,
+          "biology_ci": [
+            0.139,
+            0.187
+          ],
+          "batch_mixing": 1.19,
+          "batch_ci": [
+            1.03,
+            1.19
+          ]
+        },
+        "sphered": {
+          "biology_mAP": 0.144,
+          "biology_ci": [
+            0.134,
+            0.185
+          ],
+          "batch_mixing": 1.12,
+          "batch_ci": [
+            1.02,
+            1.12
+          ],
+          "delta_bio_vs_raw": {
+            "value": -0.011,
+            "ci": [
+              -0.045,
+              0.043
+            ],
+            "p_gt0": 0.24
+          }
+        },
+        "sphered+harmony": {
+          "biology_mAP": 0.142,
+          "biology_ci": [
+            0.115,
+            0.215
+          ],
+          "batch_mixing": 0.96,
+          "batch_ci": [
+            0.93,
+            1.02
+          ],
+          "delta_bio_vs_raw": {
+            "value": -0.005,
+            "ci": [
+              -0.072,
+              0.075
+            ],
+            "p_gt0": 0.46
+          }
+        }
+      }
+    },
+    "U2OS-48h": {
+      "n_wells": 1040,
+      "n_plates": 4,
+      "n_compounds": 260,
+      "n_evaluable_queries": 26,
+      "results": {
+        "raw": {
+          "biology_mAP": 0.166,
+          "biology_ci": [
+            0.147,
+            0.191
+          ],
+          "batch_mixing": 1.59,
+          "batch_ci": [
+            1.1,
+            1.59
+          ]
+        },
+        "sphered": {
+          "biology_mAP": 0.18,
+          "biology_ci": [
+            0.134,
+            0.246
+          ],
+          "batch_mixing": 1.19,
+          "batch_ci": [
+            1.06,
+            1.19
+          ],
+          "delta_bio_vs_raw": {
+            "value": 0.001,
+            "ci": [
+              -0.042,
+              0.093
+            ],
+            "p_gt0": 0.36
+          }
+        },
+        "sphered+harmony": {
+          "biology_mAP": 0.176,
+          "biology_ci": [
+            0.138,
+            0.239
+          ],
+          "batch_mixing": 1.0,
+          "batch_ci": [
+            0.98,
+            1.0
+          ],
+          "delta_bio_vs_raw": {
+            "value": 0.002,
+            "ci": [
+              -0.041,
+              0.082
+            ],
+            "p_gt0": 0.42
+          }
+        }
       }
     }
   }
