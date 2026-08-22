@@ -15,6 +15,21 @@ single self-contained `index.html`. **No fabricated or placeholder numbers.**
 
 ---
 
+## Disclaimer
+
+**This project is for educational, research, and portfolio demonstration purposes only. It has not been
+clinically validated and is not intended for medical diagnosis, treatment, medication, or drug-development
+decision-making, nor does it constitute medical advice.**
+
+The retrieval results are **computational hypotheses about morphological similarity between compounds** —
+not claims about any compound's efficacy, safety, or biological activity in any organism. The
+"candidate active" label is a heuristic screen, explicitly not a significance test. Section-level
+limitations are documented throughout this README and on the site itself.
+
+The code is released under the MIT licence, which carries **no warranty of any kind**.
+
+---
+
 ## What this is
 
 Most drug-discovery ML competes on *molecule → property* prediction — a crowded benchmark space.

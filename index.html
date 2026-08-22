@@ -1235,12 +1235,20 @@ RENDER.push(renderSources);
 /* ---------- footer ---------- */
 function renderFooter(){
 $('#footer').innerHTML = L(
-`<b>取資料（免 AWS 帳號）：</b><code>aws s3 ls --no-sign-request s3://cellpainting-gallery/</code>　·　JUMP profiles 索引：
+`<div style="border:1px solid rgba(255,154,70,.3);background:rgba(255,154,70,.06);border-radius:10px;padding:11px 13px;margin-bottom:13px">
+<b style="color:var(--warn)">免責聲明：</b>本專案<b>僅供教育、研究與作品展示</b>，未經臨床驗證，<b>不適用於醫療診斷、治療、用藥或藥物開發決策</b>，亦不構成醫療建議。
+頁面上的檢索結果是<b>關於化合物形態相似度的計算推測</b>，並非對任何化合物之療效、安全性或生物活性的宣稱；「候選活性」是啟發式篩選，明確不是顯著性檢定。
+程式碼依 MIT 授權釋出，不附任何形式的擔保。</div>
+<b>取資料（免 AWS 帳號）：</b><code>aws s3 ls --no-sign-request s3://cellpainting-gallery/</code>　·　JUMP profiles 索引：
 <code>jump-cellpainting/datasets/manifests/profile_index.json</code>。<b>務必用預先算好的 profiles（parquet，數百 MB～數 GB），別下載原始影像</b>（cpg0016 影像約 127 TB，2026-08 由 datasets/stats/cpg0016_source_images_size.csv 加總；整個 Gallery 約 688 TB，Weisbart 2024）。<br>
 授權：程式碼 MIT；重新散布的科學資料依上游採 CC0 1.0，並遵守 Cell Painting Gallery 與 JUMP 的 acceptable-use policy。<br>
 可重現：本頁數字由 <code>pipeline.py</code> 與 <code>images/image_pipeline.py</code> 於真實開源資料<b>離線預先計算</b>；鄰居表與頭條指標來自<b>同一套標準化表徵</b>，第三方可由 <code>webdata.json</code> 完全復現（<code>python test_consistency.py</code> 會驗證兩者一致）。<br>
 <span style="color:var(--warn)">說明：五通道細胞影像為<b>真實影像</b>（JUMP pilot CPJUMP1），分割與 59 維指紋由本作品的 <code>image_pipeline.py</code> 實際計算，但每化合物僅 1 個 field、無重複，屬案例佐證。UMAP／檢索／候選活性／去偏 mAP 的運算資料為 LINCS pilot（cpg0004）；換到 JUMP cpg0016 需改用其 S3 profiles、各 subset 前處理不同，並就 batch/來源重新設計驗證，非「只換 URL」。</span>`,
-`<b>Getting the data (no AWS account needed):</b> <code>aws s3 ls --no-sign-request s3://cellpainting-gallery/</code> · JUMP profile index:
+`<div style="border:1px solid rgba(255,154,70,.3);background:rgba(255,154,70,.06);border-radius:10px;padding:11px 13px;margin-bottom:13px">
+<b style="color:var(--warn)">Disclaimer:</b> this project is <b>for educational, research and portfolio demonstration purposes only</b>. It has not been clinically validated and is <b>not intended for medical diagnosis, treatment, medication or drug-development decision-making</b>, nor does it constitute medical advice.
+The retrieval results are <b>computational hypotheses about morphological similarity between compounds</b>, not claims about any compound's efficacy, safety or biological activity; "candidate active" is a heuristic screen, explicitly not a significance test.
+The code is released under the MIT licence, with no warranty of any kind.</div>
+<b>Getting the data (no AWS account needed):</b> <code>aws s3 ls --no-sign-request s3://cellpainting-gallery/</code> · JUMP profile index:
 <code>jump-cellpainting/datasets/manifests/profile_index.json</code>. <b>Always use the pre-computed profiles (parquet, hundreds of MB to a few GB) — do not download the raw images</b> (cpg0016 images total ≈ 127 TB, summed 2026-08 from datasets/stats/cpg0016_source_images_size.csv; the whole Gallery is ≈ 688 TB, Weisbart 2024).<br>
 Licensing: code is MIT; redistributed scientific data stays CC0 1.0 per the upstream repositories, under the Cell Painting Gallery and JUMP acceptable-use policies.<br>
 Reproducibility: every number here is <b>pre-computed offline</b> from real open data by <code>pipeline.py</code> and <code>images/image_pipeline.py</code>; the neighbour tables and the headline metrics come from <b>the same standardized representation</b>, and a third party can recompute one from the other exactly (<code>python test_consistency.py</code> asserts it).<br>
