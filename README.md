@@ -276,6 +276,7 @@ python images/image_pipeline.py 2021_Chandrasekaran_submitted
 # main analysis + page  (downloads ~50 MB of LINCS profiles on first run, cached in data/)
 python pipeline.py
 python build_page.py            # -> index.html
+python build_page.py --check    # verify index.html == template + JSON, without writing anything
 python test_consistency.py      # asserts the page's tables and headline metrics agree
 ```
 
@@ -297,7 +298,7 @@ automatically, no framework preset or configuration needed.
 ```
 index.html                  Self-contained interactive app (generated — do not edit by hand)
 index_template.html         Template with __DATA__ / __IMGDATA__ placeholders (edit this)
-build_page.py               Injects results into the template -> index.html
+build_page.py               Injects results into the template -> index.html (--check verifies only)
 
 pipeline.py                 Single source of truth for the profile analysis
 test_consistency.py         Verifies neighbour tables == headline metrics

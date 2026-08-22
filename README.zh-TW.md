@@ -240,6 +240,7 @@ python images/image_pipeline.py 2021_Chandrasekaran_submitted
 # 主分析 + 網頁(首次執行會下載約 50 MB LINCS profiles,快取於 data/)
 python pipeline.py
 python build_page.py            # -> index.html
+python build_page.py --check    # 只驗證 index.html 是否等於 模板+JSON,不寫入任何檔案
 python test_consistency.py      # 驗證頁面表格與頭條指標一致
 ```
 
@@ -259,7 +260,7 @@ python test_consistency.py      # 驗證頁面表格與頭條指標一致
 ```
 index.html                  自足的互動網頁(自動產生,請勿手改)
 index_template.html         含 __DATA__ / __IMGDATA__ 佔位符的模板(要改改這個)
-build_page.py               把結果注入模板 -> index.html
+build_page.py               把結果注入模板 -> index.html(--check 只驗證不寫入)
 
 pipeline.py                 profile 分析的唯一計算來源
 test_consistency.py         驗證鄰居表 == 頭條指標

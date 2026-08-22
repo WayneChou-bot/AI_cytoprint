@@ -85,8 +85,19 @@ if pm:
         print(f"activity   : candidate-active {r_ok:.3f} (retrieved, n={len(hit_ok)}) "
               f"vs {r_no:.3f} (missed, n={len(hit_no)}) — recomputed, matches stored")
 
-        # Spearman rho over the reliable classes, recomputed from the per-class rows
+        # Spearman rho over the reliable classes — rebuilt from the PER-COMPOUND flags, not from the
+        # stored per-class hit_rate, so a corrupted per-class row cannot make the test agree with itself
         rel_n = pm["summary"]["reliable_min_n"]
+        agg = {}
+        for x in elig:
+            a2 = agg.setdefault(x["moa"], {"q": 0, "t1": 0, "hit": 0})
+            a2["q"] += 1
+            a2["t1"] += int(bool(x["nb"]) and x["nb"][0]["moa"] == x["moa"])
+            a2["hit"] += int(bool(x["hit"]))
+        for r in pm["rows"]:
+            if "hit_rate" not in r: continue
+            assert abs(agg[r["moa"]]["hit"]/agg[r["moa"]]["q"] - r["hit_rate"]) < 0.002, \
+                f"{r['moa']}: stored hit_rate does not match the per-compound flags"
         sub = [r for r in pm["rows"] if r["n"] >= rel_n and "hit_rate" in r]
         stored = al.get("reliable_classes", {}).get("vs_candidate_active_rate")
         if stored and len(sub) >= 4:
@@ -101,7 +112,8 @@ if pm:
                     for k2 in range(i, j+1): rk[order[k2]] = avg
                     i = j+1
                 return rk
-            rx, ry = rank([r["top1"] for r in sub]), rank([r["hit_rate"] for r in sub])
+            rx = rank([agg[r["moa"]]["t1"]/agg[r["moa"]]["q"] for r in sub])   # both axes rebuilt
+            ry = rank([agg[r["moa"]]["hit"]/agg[r["moa"]]["q"] for r in sub])  # from per-compound data
             mx, my = sum(rx)/len(rx), sum(ry)/len(ry)
             num = sum((a2-mx)*(b2-my) for a2, b2 in zip(rx, ry))
             den = (sum((a2-mx)**2 for a2 in rx) * sum((b2-my)**2 for b2 in ry)) ** 0.5
