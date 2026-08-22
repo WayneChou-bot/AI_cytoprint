@@ -1,0 +1,19 @@
+# Line endings ------------------------------------------------------------
+# The Python scripts in this repo are meant to be run on Windows as well as
+# Linux/macOS, and Python's text mode writes CRLF on Windows. Without this
+# file, re-running pipeline.py / jump_mvp.py / image_pipeline.py on Windows
+# rewrites every line of the generated JSON/CSV and `git status` reports the
+# whole file as modified even though nothing changed but the line endings.
+#
+# Normalise every text file to LF inside the repository, and check it out as
+# LF everywhere, so a local re-run produces a genuinely empty diff.
+* text=auto eol=lf
+
+# Binary assets — never line-ending-converted, never diffed as text.
+*.png  binary
+*.jpg  binary
+*.tif  binary
+*.tiff binary
+*.gz   binary
+*.zip  binary
+*.parquet binary
