@@ -62,7 +62,8 @@ T = {
    xlab="批次混合 batch mixing（→1 越好）", ylab="生物訊號 MoA mAP（越高越好）",
    th=["", "方法", "生物訊號 mAP（95% CI）", "批次混合（95% CI）"],
    note="<b>誠實解讀（已修掉極端值污染後重算）：</b>三種方法的<b>生物訊號幾乎相同</b>"
-        "（mAP raw {r} / sphered {s} / +Harmony {h}；兩兩 paired block Δ 的 95% CI <b>都跨 0</b>，即無顯著差異）。"
+        "（mAP raw {r} / sphered {s} / +Harmony {h}；此處計算的兩個 Δ——sphered−raw 與 Harmony−raw"
+        "——其 95% CI <b>都跨 0</b>；sphered−Harmony 並未計算，因此這不是「所有兩兩比較」的宣稱）。"
         "批次軸上 <b>Harmony 明顯改善混合</b>（{br}× → {bh}×，往 1 靠），<b>且在此樣本量下測不到生物損失</b>"
         "——「測不到」不等於「沒有代價」；單獨球化則略微變差。<br><br>"
         "教訓：<b>去偏必須同時看「生物保存」與「批次移除」兩軸，並用 plate-block bootstrap 與 paired Δ CI。</b>"

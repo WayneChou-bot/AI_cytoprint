@@ -80,22 +80,40 @@ def moa_map_consensus(emb, comp, moa):
 def plate_mixing(emb, plate, comp, k=KMIX, subs=SUBS, rng=RNG):
     """batch: kNN same-plate enrichment among DIFFERENT-compound neighbours only
     (so preserved biological replicates are NOT counted as batch structure).
-    1.0 = perfectly mixed; >1 = plate structure remains."""
+    1.0 = perfectly mixed; >1 = plate structure remains.
+
+    Two details that have to match, or the ratio is comparing unlike things:
+      · a fixed k DIFFERENT-compound neighbours per query. Asking for k+1 raw
+        neighbours and then dropping same-compound ones leaves some queries with
+        fewer than k, so queries would carry unequal weight; we over-request and
+        then take the first k that qualify.
+      · the expected rate is computed over DIFFERENT-compound pairs too. Using
+        all pairs (the old version) mixes same-compound pairs into the denominator
+        while the numerator excludes them.
+    """
     emb = np.ascontiguousarray(emb)
     # NOTE: duplicated wells from a block-bootstrap draw are harmless here — a duplicate of
     # well w carries w's compound, and same-compound neighbours are excluded below.
     n = len(emb); idx = rng.choice(n, min(subs, n), replace=False)
     E = emb[idx]; P = np.asarray(plate)[idx]; C = np.asarray(comp)[idx]
-    nn = NearestNeighbors(n_neighbors=k+1).fit(E)
+    cc = Counter(C)
+    kq = min(len(E), k + max(cc.values()) + 1)                 # over-request, then filter
+    nn = NearestNeighbors(n_neighbors=kq).fit(E)
     _, ind = nn.kneighbors(E)
     fr = []
     for i in range(len(E)):
-        neigh = [j for j in ind[i, 1:] if C[j] != C[i]]   # exclude same-compound replicates
-        if neigh: fr.append(np.mean([P[j] == P[i] for j in neigh]))
+        neigh = [j for j in ind[i, 1:] if C[j] != C[i]][:k]    # exactly k different-compound neighbours
+        if len(neigh) == k: fr.append(np.mean([P[j] == P[i] for j in neigh]))
     if not fr: return np.nan
     same = float(np.mean(fr))
-    cnt = Counter(P); S = len(P); exp = sum(c*(c-1) for c in cnt.values())/(S*(S-1))
-    return float(same/exp) if exp > 0 else np.nan
+    S = len(P); cpl = Counter(P); cboth = Counter(zip(P, C))
+    same_plate = sum(v*(v-1) for v in cpl.values())
+    same_comp  = sum(v*(v-1) for v in cc.values())
+    same_both  = sum(v*(v-1) for v in cboth.values())
+    num = same_plate - same_both                               # same plate AND different compound
+    den = S*(S-1) - same_comp                                  # different compound
+    exp = num/den if den > 0 else np.nan
+    return float(same/exp) if exp and exp > 0 else np.nan
 
 def build_reps(Xw, dmso, plate):
     """common 50-dim space for fair comparison."""

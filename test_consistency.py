@@ -52,7 +52,30 @@ if pm:
     assert s["n_classes"] == len(pm["rows"])
     assert s["n_classes_zero_top1"] == sum(1 for r in pm["rows"] if r["top1"] == 0)
     assert s["n_classes_perfect_top1"] == sum(1 for r in pm["rows"] if r["top1"] == 1.0)
+    # hits/queries must be integers that reproduce the rates, not just a percentage
+    for r in pm["rows"]:
+        assert abs(r["hits1"]/r["queries"] - r["top1"]) < 0.002, f"{r['moa']}: hits1/queries != top1"
+        assert abs(r["hits5"]/r["queries"] - r["top5"]) < 0.002, f"{r['moa']}: hits5/queries != top5"
+        assert r["top1_ci"][0] <= r["top1"] <= r["top1_ci"][1], f"{r['moa']}: Wilson CI excludes the estimate"
+    # BOTH averages must reproduce — the section's whole claim is that they differ
+    mac1 = sum(r["top1"] for r in pm["rows"]) / len(pm["rows"])
+    mac5 = sum(r["top5"] for r in pm["rows"]) / len(pm["rows"])
+    assert abs(mac1 - s["top1_macro"]) < 0.002, "macro top1 mismatch"
+    assert abs(mac5 - s["top5_macro"]) < 0.002, "macro top5 mismatch"
+    assert abs(s["top1_query_weighted"] - met["acc1"]) < 0.002, "query-weighted top1 != headline"
+    assert s["top1_macro"] < s["top1_query_weighted"], "macro should be below query-weighted here"
+    assert s["top1_hits_total"] == sum(r["hits1"] for r in pm["rows"])
     print(f"per-MoA    : {s['n_classes']} classes recomputed and consistent; "
           f"rows average to headline top1={w:.3f}")
+    print(f"             top1 query-weighted={s['top1_query_weighted']} vs macro={s['top1_macro']}; "
+          f"top5 {s['top5_query_weighted']} vs {s['top5_macro']}")
+    al = pm.get("activity_link")
+    if al:
+        c, m = al["correct_retrieved"], al["mis_retrieved"]
+        assert c["n"] + m["n"] == met["n_eval"], "activity-link split does not cover the eligible set"
+        assert c["candidate_active_rate"] > m["candidate_active_rate"], \
+            "correctly-retrieved compounds should not be LESS often candidate-active"
+        print(f"activity   : candidate-active {c['candidate_active_rate']:.3f} (retrieved, n={c['n']}) "
+              f"vs {m['candidate_active_rate']:.3f} (missed, n={m['n']})")
 
 print("OK — neighbour tables, headline metrics and the per-MoA breakdown are consistent.")

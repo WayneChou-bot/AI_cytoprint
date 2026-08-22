@@ -140,18 +140,30 @@ def retrieval_metrics(Z, moa):
     return dict(acc1=round(t1/len(elig), 3), top5_recall=round(t5/len(elig), 3),
                 random=round(rnd, 4), fold=round((t1/len(elig))/rnd, 1), n_eval=len(elig))
 
-def per_moa_breakdown(Z, moa):
+def wilson(k, n, z=1.96):
+    """Wilson score interval for a binomial rate — behaves sensibly at 0/n and n/n,
+    which a normal-approximation interval does not, and most classes here are tiny."""
+    if n == 0: return [None, None]
+    p = k/n; d = 1 + z*z/n
+    c = (p + z*z/(2*n))/d
+    h = z*np.sqrt(p*(1-p)/n + z*z/(4*n*n))/d
+    return [round(max(0.0, c-h), 3), round(min(1.0, c+h), 3)]
+
+def per_moa_breakdown(Z, moa, hit=None, act=None):
     """Per-MoA retrieval breakdown.
 
-    A single headline Top-1 is a query-weighted average over MoA classes with wildly
-    different difficulty, so it hides the actual shape of the result: a handful of classes
-    with strong, distinctive morphology are retrieved almost perfectly, while most classes
-    (largely receptor ligands with no characteristic phenotype) sit at zero. Reporting the
-    distribution is more honest than reporting its mean, and it is what tells you when the
-    method is usable.
+    A single headline Top-1 is a QUERY-WEIGHTED average over MoA classes with wildly
+    different difficulty and size, so it hides the shape of the result: a few classes with
+    strong, distinctive morphology are retrieved almost perfectly, most sit at zero. The
+    class-balanced (macro) average of the same data is a different number, and both are
+    reported here — quoting one alone is choosing whichever definition flatters the result.
 
-    Returns (rows, summary). Each row: MoA, n compounds, Top-1, Top-5, mAP, and the
-    self-excluded random Top-1 baseline for a class of that size, (n-1)/(P-1).
+    If `hit` (candidate-active flag) and `act` (activity score) are supplied, each class also
+    carries its candidate-active rate and median activity, which is what lets the page ask
+    whether retrieval failure tracks *phenotype strength* rather than asserting it.
+
+    Returns (rows, summary). Each row carries hits/queries, not just the percentage, plus a
+    Wilson 95% interval — 57 of these classes hold only 2 compounds, where a rate is 0 or 1.
     """
     sim = cosine_similarity(Z); np.fill_diagonal(sim, -np.inf)
     pool = [i for i in range(len(moa)) if isinstance(moa[i], str)]
@@ -161,28 +173,79 @@ def per_moa_breakdown(Z, moa):
     for i in elig:
         order = [j for j in np.argsort(-sim[i]) if j in poolset and j != i]
         rels = [1 if moa[j] == moa[i] else 0 for j in order]
-        d = per.setdefault(moa[i], {"n": cnt[moa[i]], "t1": 0, "t5": 0, "ap": [], "q": 0})
+        d = per.setdefault(moa[i], {"n": cnt[moa[i]], "t1": 0, "t5": 0, "ap": [], "q": 0,
+                                    "hit": 0, "act": []})
         d["q"] += 1
         d["t1"] += int(rels[0] == 1)
         d["t5"] += int(any(rels[:5]))
         d["ap"].append(average_precision(rels))
+        if hit is not None: d["hit"] += int(bool(hit[i]))
+        if act is not None: d["act"].append(float(act[i]))
     rows = []
     for m, d in per.items():
-        rows.append({"moa": m, "n": d["n"], "queries": d["q"],
-                     "top1": round(d["t1"]/d["q"], 3), "top5": round(d["t5"]/d["q"], 3),
-                     "mAP": round(float(np.nanmean(d["ap"])), 3),
-                     "rand": round((d["n"]-1)/(P-1), 4)})
+        r = {"moa": m, "n": d["n"], "queries": d["q"], "hits1": d["t1"], "hits5": d["t5"],
+             "top1": round(d["t1"]/d["q"], 3), "top5": round(d["t5"]/d["q"], 3),
+             "top1_ci": wilson(d["t1"], d["q"]),
+             "mAP": round(float(np.nanmean(d["ap"])), 3),
+             "rand": round((d["n"]-1)/(P-1), 4)}
+        if hit is not None: r["hit_rate"] = round(d["hit"]/d["q"], 3)
+        if act is not None: r["median_act"] = round(float(np.median(d["act"])), 1)
+        rows.append(r)
     rows.sort(key=lambda r: (-r["top1"], -r["mAP"], -r["n"]))
-    n_zero = sum(1 for r in rows if r["top1"] == 0)
-    q_weighted = float(np.average([r["mAP"] for r in rows], weights=[r["queries"] for r in rows]))
-    summary = {"n_classes": len(rows), "n_classes_zero_top1": n_zero,
-               "n_classes_perfect_top1": sum(1 for r in rows if r["top1"] == 1.0),
-               "mAP_macro_per_class": round(float(np.mean([r["mAP"] for r in rows])), 3),
-               "mAP_query_weighted": round(q_weighted, 3),
-               "top1_share_from_top5_classes": round(
-                   sum(r["top1"]*r["queries"] for r in rows[:5]) /
-                   max(1, sum(r["top1"]*r["queries"] for r in rows)), 3)}
+
+    RELIABLE = 5                                     # a rate from <5 compounds is nearly uninformative
+    rel = [r for r in rows if r["n"] >= RELIABLE]
+    tot1 = sum(r["hits1"] for r in rows)
+    summary = {
+        "n_classes": len(rows), "n_queries": len(elig),
+        "n_classes_zero_top1": sum(1 for r in rows if r["top1"] == 0),
+        "n_classes_perfect_top1": sum(1 for r in rows if r["top1"] == 1.0),
+        "n_classes_size2": sum(1 for r in rows if r["n"] == 2),
+        "reliable_min_n": RELIABLE, "n_classes_reliable": len(rel),
+        # the two averages of the SAME data — the whole point of this section
+        "top1_query_weighted": round(tot1/len(elig), 3),
+        "top1_macro": round(float(np.mean([r["top1"] for r in rows])), 3),
+        "top5_query_weighted": round(sum(r["hits5"] for r in rows)/len(elig), 3),
+        "top5_macro": round(float(np.mean([r["top5"] for r in rows])), 3),
+        "mAP_query_weighted": round(float(np.average([r["mAP"] for r in rows],
+                                                    weights=[r["queries"] for r in rows])), 3),
+        "mAP_macro_per_class": round(float(np.mean([r["mAP"] for r in rows])), 3),
+        "top1_hits_total": tot1,
+        "top1_share_from_top5_classes": round(sum(r["hits1"] for r in rows[:5])/max(1, tot1), 3),
+        "top1_share_from_top5_classes_reliable": round(
+            sum(r["hits1"] for r in rel[:5])/max(1, sum(r["hits1"] for r in rel)), 3) if rel else None,
+        "hits_from_small_classes": sum(r["hits1"] for r in rows[:5] if r["n"] < RELIABLE),
+    }
     return rows, summary
+
+def activity_link(rows, drugs_hit, drugs_t1, min_n=5):
+    """Does retrieval failure track PHENOTYPE STRENGTH, or is it unexplained?
+
+    This is the layer that separates "these classes were not retrieved" (which the breakdown
+    shows) from "these classes produced no detectable morphological signal" (which it does
+    NOT show on its own). It is descriptive support, not independent biological validation:
+    the activity score is derived from the SAME morphology features as the retrieval, so a
+    correlation between them cannot prove the compounds are biologically inert.
+    """
+    from scipy import stats
+    out = {"caveat": ("activity is derived from the same morphology features as retrieval, "
+                      "so this is descriptive support, not independent biological validation")}
+    n1 = sum(1 for h, t in zip(drugs_hit, drugs_t1) if t)
+    out["correct_retrieved"] = {"n": n1,
+        "candidate_active_rate": round(sum(h for h, t in zip(drugs_hit, drugs_t1) if t)/max(1, n1), 3)}
+    n0 = sum(1 for t in drugs_t1 if not t)
+    out["mis_retrieved"] = {"n": n0,
+        "candidate_active_rate": round(sum(h for h, t in zip(drugs_hit, drugs_t1) if not t)/max(1, n0), 3)}
+    for tag, sub in (("all_classes", rows), ("reliable_classes", [r for r in rows if r["n"] >= min_n])):
+        if len(sub) < 4 or "hit_rate" not in sub[0]: continue
+        x = [r["top1"] for r in sub]
+        for key, y in (("vs_candidate_active_rate", [r["hit_rate"] for r in sub]),
+                       ("vs_median_activity", [r["median_act"] for r in sub])):
+            s = stats.spearmanr(x, y)
+            out.setdefault(tag, {})[key] = {"n_classes": len(sub),
+                                            "spearman_rho": round(float(s.statistic), 3),
+                                            "p": float(f"{s.pvalue:.3g}")}
+    return out
 
 # ─────────────────────────── de-biasing (raw / sphered / +harmony) ───────────
 def zca(Xt, dmso):
@@ -280,7 +343,16 @@ def main():
     sim = cosine_similarity(Z); np.fill_diagonal(sim, -np.inf)
     met = retrieval_metrics(Z, moa)
 
-    moa_rows, moa_summary = per_moa_breakdown(Z, moa)
+    moa_rows, moa_summary = per_moa_breakdown(Z, moa, hit=hit, act=act)
+    _pool = [i for i in range(len(moa)) if isinstance(moa[i], str)]
+    _cnt = Counter(moa[i] for i in _pool)
+    _elig = [i for i in _pool if _cnt[moa[i]] >= 2]
+    _sim = cosine_similarity(Z); np.fill_diagonal(_sim, -np.inf)
+    _t1, _hit = [], []
+    for i in _elig:
+        _o = [j for j in np.argsort(-_sim[i]) if j in set(_pool) and j != i]
+        _t1.append(int(moa[_o[0]] == moa[i])); _hit.append(int(bool(hit[i])))
+    moa_activity = activity_link(moa_rows, _hit, _t1, min_n=moa_summary["reliable_min_n"])
     import umap
     emb = umap.UMAP(n_neighbors=15, min_dist=0.4, metric="cosine", random_state=42).fit_transform(Z)
     top_moa = [m for m, _ in Counter([x for x in moa if isinstance(x, str)]).most_common(10)]
@@ -316,7 +388,7 @@ def main():
         "acc1": met["acc1"], "top5_recall": met["top5_recall"], "random": met["random"],
         "fold": met["fold"], "n_eval": met["n_eval"], "thr": round(thr, 1),
         "hit_metric": "candidate-active: consensus L2 distance from DMSO centre > DMSO-null P95 (heuristic screen, not a significance test)"},
-      "per_moa": {"rows": moa_rows, "summary": moa_summary},
+      "per_moa": {"rows": moa_rows, "summary": moa_summary, "activity_link": moa_activity},
       "classes": top_moa,
       "moa_sizes": dict(Counter([x for x in moa if isinstance(x, str)]).most_common(12)),
       "drugs": drugs, "fp_types": fp_types,
@@ -327,8 +399,17 @@ def main():
     dd = out["debias"]
     ms = out["per_moa"]["summary"]
     print(f"per-MoA: {ms['n_classes']} classes  perfect-top1={ms['n_classes_perfect_top1']}  "
-          f"zero-top1={ms['n_classes_zero_top1']}  mAP macro={ms['mAP_macro_per_class']} "
-          f"query-weighted={ms['mAP_query_weighted']}")
+          f"zero-top1={ms['n_classes_zero_top1']}")
+    print(f"  top1 query-weighted={ms['top1_query_weighted']} macro={ms['top1_macro']}  |  "
+          f"top5 qw={ms['top5_query_weighted']} macro={ms['top5_macro']}  |  "
+          f"mAP qw={ms['mAP_query_weighted']} macro={ms['mAP_macro_per_class']}")
+    al = out["per_moa"]["activity_link"]
+    print(f"  candidate-active rate: correctly retrieved {al['correct_retrieved']['candidate_active_rate']} "
+          f"(n={al['correct_retrieved']['n']}) vs mis-retrieved {al['mis_retrieved']['candidate_active_rate']} "
+          f"(n={al['mis_retrieved']['n']})")
+    rc = al.get("reliable_classes", {}).get("vs_candidate_active_rate", {})
+    if rc: print(f"  Spearman top1~candidate-active over n>={ms['reliable_min_n']} classes: "
+                 f"rho={rc['spearman_rho']} p={rc['p']} (k={rc['n_classes']})")
     print(f"drugs={len(ids)}  hit={100*out['metrics']['hit_frac']:.0f}%  "
           f"top1={100*met['acc1']:.1f}% ({met['fold']}x rand={100*met['random']:.2f}%)  top5={100*met['top5_recall']:.1f}%")
     print(f"debias mAP raw={dd['mAP']['raw']} {dd['ci']['raw']}  sphered={dd['mAP']['sphered']} {dd['ci']['sphered']}  "

@@ -76,45 +76,88 @@ representations and validated batch correction.
 
 ### Per-MoA breakdown: the average is the least informative number here
 
-That 9.0 % is an average over **113 MoA classes of wildly different difficulty**, and it misleads in both
-directions. **102 classes sit at 0 % Top-1**, while a handful are near-perfect — and **59 % of all Top-1
-hits come from just 5 classes**. Opening up the distribution is more useful than quoting its mean:
+That 9.0 % is the **query-weighted** average. Class-balanced (macro) over the same 113 MoA classes it is
+only **6.1 %**; Top-5 is 14.9 % query-weighted versus **10.6 %** macro. Both are correct — they answer
+different questions ("will a randomly drawn *compound* be retrieved" versus "how does a randomly drawn
+*class* perform") — and reporting only one is choosing whichever definition flatters the result.
 
-| MoA class | n | Top-1 | Top-5 | mAP |
-|---|---|---|---|---|
-| Aurora kinase inhibitor | 5 | **100 %** | 100 % | 0.834 |
-| HDAC inhibitor | 3 | **100 %** | 100 % | 0.783 |
-| mTOR inhibitor | 9 | **89 %** | 89 % | 0.728 |
-| glucocorticoid receptor agonist | 9 | **78 %** | 89 % | 0.641 |
-| JAK inhibitor | 5 | 40 % | 40 % | 0.110 |
-| proteasome inhibitor | 3 | 33 % | **100 %** | 0.583 |
-| topoisomerase inhibitor | 7 | 29 % | 43 % | 0.086 |
-| EGFR inhibitor | 6 | 17 % | 50 % | 0.080 |
-| cyclooxygenase inhibitor | 14 | 7 % | 21 % | 0.050 |
-| serotonin / adrenergic / histamine / dopamine receptor ligands | 7–13 | **0 %** | 0–29 % | ≤ 0.04 |
-| phosphodiesterase inhibitor | 11 | **0 %** | 9 % | 0.026 |
+The gap between them comes from extreme heterogeneity. **102 of 113 classes sit at 0 % Top-1**, while a
+handful are near-perfect, and **59 % of all Top-1 hits come from just 5 classes** (7 of those hits from
+classes with n < 5 — see the caveat below). Opening up the distribution is more useful than quoting its mean:
+
+Counts are given as `hits/queries`, not just a rate, with a Wilson 95 % interval — most of these classes
+are small, and a percentage alone hides that.
+
+| MoA class | n | Top-1 | Wilson 95 % CI | Top-5 | mAP |
+|---|---|---|---|---|---|
+| Aurora kinase inhibitor | 5 | **5/5** | 57–100 % | 5/5 | 0.834 |
+| HDAC inhibitor | 3 | **3/3** | 44–100 % | 3/3 | 0.783 |
+| mTOR inhibitor | 9 | **8/9** | 57–98 % | 8/9 | 0.728 |
+| glucocorticoid receptor agonist | 9 | **7/9** | 45–94 % | 8/9 | 0.641 |
+| JAK inhibitor | 5 | 2/5 | 12–77 % | 2/5 | 0.110 |
+| proteasome inhibitor | 3 | 1/3 | 6–79 % | **3/3** | 0.583 |
+| topoisomerase inhibitor | 7 | 2/7 | 8–64 % | 3/7 | 0.086 |
+| EGFR inhibitor | 6 | 1/6 | 3–56 % | 3/6 | 0.080 |
+| cyclooxygenase inhibitor | 14 | 1/14 | 1–32 % | 3/14 | 0.050 |
+| serotonin / adrenergic / histamine / dopamine receptor ligands | 7–13 | **0** | — | 0–29 % | ≤ 0.04 |
+| phosphodiesterase inhibitor | 11 | **0/11** | 0–26 % | 1/11 | 0.026 |
+
+Those intervals are the reason the page says "**MoAs with high retrieval success within this dataset**"
+rather than "essentially solved": even a flawless 5/5 has a Wilson lower bound of 57 %.
 
 The split is **mechanistically coherent, not random**. Everything that works — Aurora kinase, HDAC, mTOR,
 proteasome — directly perturbs the cell cycle, chromatin, protein degradation or growth signalling, and
 therefore changes how the cell *looks*: enlarged nuclei, arrested division, a reorganised cytoskeleton. That
 is exactly what a morphological fingerprint encodes. The classes at 0 % are overwhelmingly GPCR, ion-channel
-and signalling modulators that produce no visible phenotype in A549 lung epithelial cells — the receptor may
-not even be expressed. **No phenotype means no morphology to fingerprint**; that is a boundary of the assay,
-not a failure of the algorithm.
+and signalling modulators.
+
+#### Does retrieval failure actually track phenotype strength?
+
+That question deserves a measurement rather than an assertion, so the pipeline computes one:
+
+| | n | candidate-active rate |
+|---|---|---|
+| correctly retrieved (Top-1 hit) | 34 | **88.2 %** |
+| missed | 343 | **21.6 %** |
+
+Across the 19 classes with n ≥ 5, class Top-1 correlates with candidate-active rate at
+**Spearman ρ = 0.826 (p = 1.4 × 10⁻⁵)** and with median activity at ρ = 0.747 (p = 2.4 × 10⁻⁴); over all
+113 classes, ρ = 0.408 (p = 7.2 × 10⁻⁶).
+
+**What this does not establish.** The activity score is derived from the *same morphology features* as the
+retrieval, so this is descriptive support, **not independent biological validation** — a correlation between
+two quantities both computed from morphology cannot show that a compound is biologically inert. Retrieval
+may also fail because the five Cell Painting channels miss the effect, the dose or timepoint is unsuitable,
+the response is confined to a few cells or non-linear, or the activity threshold is itself only an
+estimation rule. The claim this repo makes is therefore the narrow one:
+
+> Most failing classes show **no detectable morphological phenotype sufficient to support reliable
+> retrieval**, under this assay, dose, timepoint, representation and activity criterion.
+
+Not "most compounds have no phenotype".
+
+**And activity is not sufficient.** Cytochrome P450 inhibitors (40 % of them candidate-active) and
+phosphodiesterase inhibitors (27 %) both retrieve at **0 %**. Having a phenotype does not mean a class
+*shares* one; retrieval needs signal **and** within-class consistency of that signal.
 
 "Receptor ligands don't work" would nonetheless be the wrong lesson: **glucocorticoid receptor agonists are
 receptor ligands and reach 78 %**, because A549 does express GR and its downstream effect is a strong
 transcriptional reprogramming. The criterion is not the drug's target class but **whether this cell line
 responds to it**.
 
-Two caveats. Both averages are reported — macro-averaged per class the mAP is **0.073**, query-weighted it
-is **0.091** — because quoting only one is choosing whichever definition flatters the result. And 57 of the
-113 classes contain just 2 compounds, where Top-1 can only be 0 % or 100 %; the interactive chart therefore
-defaults to n ≥ 5, and the trustworthy signal is the classes with n ≥ 5 *and* high Top-1 (Aurora, mTOR, GR
-agonists), not any individual two-compound class.
+**Sample size.** 57 of the 113 classes contain just 2 compounds, where Top-1 can only be 0 % or 100 %; the
+interactive chart therefore defaults to n ≥ 5. The 59 % concentration figure is computed over *all* classes
+and includes 7 hits from classes with n < 5, so it should not be read together with the n ≥ 5 chart.
 
-`test_consistency.py` recomputes every per-class rate from the published neighbour tables and asserts that
-they average back to the headline Top-1.
+**Two mAP estimators, deliberately not comparable.** The mAP in this section (macro **0.073**,
+query-weighted **0.091**) builds the per-compound consensus first and standardises after. The mAP in the
+batch-correction section (raw ≈ **0.088**) standardises wells first and builds the consensus after. Both are
+legitimate and each is internally consistent, but they are different representations and **the two numbers
+must not be compared to each other**.
+
+`test_consistency.py` recomputes every per-class rate from the published neighbour tables, checks
+`hits/queries` against each rate, checks that every Wilson interval contains its estimate, verifies **both**
+averages, and asserts that the query-weighted one reproduces the headline Top-1.
 
 ### Batch correction: measured, not assumed
 
@@ -132,8 +175,8 @@ Pooled (confounded — reported for reference only):
 
 | Representation | Biology (MoA mAP, 95 % CI) | Batch mixing (→1 is better) | Δ vs raw (95 % CI) |
 |---|---|---|---|
-| raw | 0.154 [0.130, 0.201] | 3.17 [2.65, 3.66] | — |
-| sphered (ZCA) | 0.180 [0.134, 0.246] | 1.88 [1.54, 2.18] | +0.025 [−0.044, +0.098] |
+| raw | 0.154 [0.130, 0.201] | 3.08 [2.57, 3.57] | — |
+| sphered (ZCA) | 0.180 [0.134, 0.246] | 1.85 [1.52, 2.14] | +0.025 [−0.044, +0.098] |
 | sphered + Harmony | 0.131 [0.087, 0.193] | 1.04 [0.85, 1.24] | −0.023 [−0.084, +0.045] |
 
 > **Harmony improved plate mixing, while pooled MoA retrieval showed no measurable loss. Because plate
@@ -149,7 +192,7 @@ embeddings; 1.0 means the condition is no longer distinguishable):
 | sphered (ZCA) | 1.21 | 1.10 |
 | sphered + Harmony | 1.11 | **1.02** |
 
-Harmony's near-perfect batch mixing (3.17 → 1.04) coincides with the timepoint structure being **essentially
+Harmony's near-perfect batch mixing (3.08 → 1.04) coincides with the timepoint structure being **essentially
 erased** (1.28 → 1.02) and the cell-line structure more than halved in excess-over-chance terms (1.62 → 1.11).
 
 The correct reading is deliberately conservative. Harmony substantially removes **condition-associated
@@ -164,13 +207,13 @@ replicate (4 plates, ~1,000 wells, 260 compounds, 26 eligible MoA queries each):
 
 | Stratum | raw mAP | Δ sphered (95 % CI) | Δ sphered+Harmony (95 % CI) | raw batch mixing |
 |---|---|---|---|---|
-| A549-24h | 0.159 | **−0.069** [−0.160, +0.028] | **−0.098** [−0.166, +0.028] | 1.46 |
-| A549-48h | 0.187 | +0.020 [−0.030, +0.080] | +0.011 [−0.031, +0.056] | 1.11 |
-| U2OS-24h | 0.154 | −0.011 [−0.046, +0.042] | −0.012 [−0.079, +0.068] | 1.19 |
-| U2OS-48h | 0.166 | +0.014 [−0.032, +0.103] | +0.010 [−0.036, +0.088] | 1.59 |
+| A549-24h | 0.159 | **−0.069** [−0.160, +0.028] | **−0.098** [−0.166, +0.028] | 1.45 |
+| A549-48h | 0.187 | +0.020 [−0.030, +0.080] | +0.011 [−0.031, +0.056] | 1.10 |
+| U2OS-24h | 0.154 | −0.011 [−0.046, +0.042] | −0.012 [−0.079, +0.068] | 1.18 |
+| U2OS-48h | 0.166 | +0.014 [−0.032, +0.103] | +0.010 [−0.036, +0.088] | 1.57 |
 
-Two things follow. First, **the within-condition batch effect is modest**: raw batch mixing is 1.11–1.59,
-not the 3.17 seen when pooling — the pooled plate-label enrichment was dominated by *between-condition*
+Two things follow. First, **the within-condition batch effect is modest**: raw batch mixing is 1.10–1.57,
+not the 3.08 seen when pooling — the pooled plate-label enrichment was dominated by *between-condition*
 structure, not by plate-to-plate differences within a condition. That is what one expects from CPJUMP1, a
 single-source, single-site pilot. Second, **under the current exploratory bootstrap all eight Δ intervals
 cross zero**: at this design and sample size (26 eligible queries per stratum, 104 in total) neither
@@ -275,8 +318,9 @@ CITATION.md                 Full data sources and citations
 **Feature sanitization (`pipeline.py`).** Non-finite values → NaN; features whose max |value| exceeds
 100 are dropped as MAD-blowup artifacts; the rest are winsorized to ±15 **and written back**; then
 variance and correlation filtering. Downstream code reads only the sanitized matrix, and
-`data/manifest.json` records the commit, cleaning rules and a version tag so a stale cache cannot be
-silently reused.
+`data/manifest.json` records the commit, the cleaning rules and a version tag, and the derived file
+carries that version in its name — so a cache built by a different version is visible rather than silently
+reused. It is a provenance record, not an enforced integrity check: nothing verifies a hash before reading.
 
 **Metrics.** Retrieval uses cosine similarity on standardized per-compound consensus profiles. The
 random baseline **excludes the query itself** and is matched to eligible-query class sizes:
@@ -289,10 +333,11 @@ one from the other exactly.
 *significant* — there is no plate-matched null, no whitening, and no per-compound FDR. The rigorous
 upgrade is replicate mAP with permutation p-values and FDR.
 
-**Channel mapping.** `ch5 = DNA` and `ch1 = Mito` were determined empirically (nuclear morphology and
-segmentation for DNA; strongest nuclear exclusion and absent nucleolar contrast for Mito). `ch2/3/4 =
-AGP/RNA/ER` are inferred from those anchors by acquisition wavelength order and are **not** confirmed
-against the authoritative table, which lives in the LFS-tracked `load_data_csv/*.csv.gz`. Verify with:
+**Channel mapping — verified.** The mapping was checked against the authoritative table the CellProfiler
+pipeline itself consumes, `load_data_csv/2020_11_04_CPJUMP1/BR00117010/load_data.csv.gz`, whose
+`FileName_Orig*` columns give `ch1 = Mito`, `ch2 = AGP`, `ch3 = RNA`, `ch4 = ER`, `ch5 = DNA`, and
+`ch6/7/8 = HighZBF / LowZBF / Brightfield`. This confirmed the earlier empirical assignment exactly.
+Reproduce with:
 
 ```bash
 git lfs pull --include="load_data_csv/2020_11_04_CPJUMP1/BR00117010/load_data.csv.gz"
