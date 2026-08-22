@@ -74,6 +74,48 @@ Nearest-neighbour retrieval over standardized consensus profiles:
 Modest but clearly above chance — and honest about it. That gap is exactly the motivation for better
 representations and validated batch correction.
 
+### Per-MoA breakdown: the average is the least informative number here
+
+That 9.0 % is an average over **113 MoA classes of wildly different difficulty**, and it misleads in both
+directions. **102 classes sit at 0 % Top-1**, while a handful are near-perfect — and **59 % of all Top-1
+hits come from just 5 classes**. Opening up the distribution is more useful than quoting its mean:
+
+| MoA class | n | Top-1 | Top-5 | mAP |
+|---|---|---|---|---|
+| Aurora kinase inhibitor | 5 | **100 %** | 100 % | 0.834 |
+| HDAC inhibitor | 3 | **100 %** | 100 % | 0.783 |
+| mTOR inhibitor | 9 | **89 %** | 89 % | 0.728 |
+| glucocorticoid receptor agonist | 9 | **78 %** | 89 % | 0.641 |
+| JAK inhibitor | 5 | 40 % | 40 % | 0.110 |
+| proteasome inhibitor | 3 | 33 % | **100 %** | 0.583 |
+| topoisomerase inhibitor | 7 | 29 % | 43 % | 0.086 |
+| EGFR inhibitor | 6 | 17 % | 50 % | 0.080 |
+| cyclooxygenase inhibitor | 14 | 7 % | 21 % | 0.050 |
+| serotonin / adrenergic / histamine / dopamine receptor ligands | 7–13 | **0 %** | 0–29 % | ≤ 0.04 |
+| phosphodiesterase inhibitor | 11 | **0 %** | 9 % | 0.026 |
+
+The split is **mechanistically coherent, not random**. Everything that works — Aurora kinase, HDAC, mTOR,
+proteasome — directly perturbs the cell cycle, chromatin, protein degradation or growth signalling, and
+therefore changes how the cell *looks*: enlarged nuclei, arrested division, a reorganised cytoskeleton. That
+is exactly what a morphological fingerprint encodes. The classes at 0 % are overwhelmingly GPCR, ion-channel
+and signalling modulators that produce no visible phenotype in A549 lung epithelial cells — the receptor may
+not even be expressed. **No phenotype means no morphology to fingerprint**; that is a boundary of the assay,
+not a failure of the algorithm.
+
+"Receptor ligands don't work" would nonetheless be the wrong lesson: **glucocorticoid receptor agonists are
+receptor ligands and reach 78 %**, because A549 does express GR and its downstream effect is a strong
+transcriptional reprogramming. The criterion is not the drug's target class but **whether this cell line
+responds to it**.
+
+Two caveats. Both averages are reported — macro-averaged per class the mAP is **0.073**, query-weighted it
+is **0.091** — because quoting only one is choosing whichever definition flatters the result. And 57 of the
+113 classes contain just 2 compounds, where Top-1 can only be 0 % or 100 %; the interactive chart therefore
+defaults to n ≥ 5, and the trustworthy signal is the classes with n ≥ 5 *and* high Top-1 (Aurora, mTOR, GR
+agonists), not any individual two-compound class.
+
+`test_consistency.py` recomputes every per-class rate from the published neighbour tables and asserts that
+they average back to the headline Top-1.
+
 ### Batch correction: measured, not assumed
 
 Correction is evaluated on **two axes simultaneously** (you can trivially win one by wrecking the
@@ -266,6 +308,9 @@ git lfs pull --include="load_data_csv/2020_11_04_CPJUMP1/BR00117010/load_data.cs
 - **The JUMP-Target comparison is exploratory**: plate is perfectly confounded with `cell_line × timepoint`
   in CPJUMP1, so the pooled result cannot separate technical from condition-specific variation. Use the
   stratified output instead.
+- **The headline Top-1 is an average over very unequal classes** — 102 of 113 MoA classes retrieve at 0 %
+  while 5 classes supply 59 % of all hits. Read the per-MoA breakdown, not the mean, before assuming the
+  method transfers to a given target class.
 - **59 hand-built features** are a simplified re-implementation of CellProfiler (1,747 features),
   intended to demonstrate the end-to-end capability, not to replace it.
 - The in-browser upload feature runs a **simplified analysis** (single grayscale channel, Otsu,

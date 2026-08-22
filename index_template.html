@@ -35,6 +35,8 @@
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   .grid2 .card,.grid3 .card{margin-top:0}
   .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:14px}
+  .grid4 .card{margin-top:0}
   /* stats strip */
   .stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
   .stat{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px 12px}
@@ -372,6 +374,33 @@
   <div class="disc" style="margin-top:10px"><b><z>關鍵結論：</z><e>Bottom line: </e></b><span id="jump-concl"></span></div>
 </div>
 
+<div class="sec-title"><z>05d · 逐 MoA 拆解：這個方法在哪裡有效、在哪裡無效</z><e>05d · Per-MoA breakdown: where this method works and where it does not</e></div>
+<div class="grid4" id="moa-kpi"></div>
+<div class="card">
+  <div id="moa-lede" style="font-size:12px;color:var(--dim);line-height:1.9"></div>
+</div>
+<div class="grid2">
+  <div class="card">
+    <h2><z>各 MoA 類別的檢索表現</z><e>Retrieval performance by MoA class</e> <span class="hint"><z>依 Top-1 排序 · 滑鼠移入看細節</z><e>sorted by Top-1 · hover for detail</e></span></h2>
+    <div class="controls" style="margin-bottom:10px">
+      <span style="font-size:10px;color:var(--dim);align-self:center"><z>最小類別大小</z><e>Min class size</e></span>
+      <button class="msz" data-n="2">n ≥ 2</button>
+      <button class="msz" data-n="3">n ≥ 3</button>
+      <button class="msz on" data-n="5">n ≥ 5</button>
+    </div>
+    <svg id="moabars" class="plot" viewBox="0 0 470 460"></svg>
+    <div class="umap-legend" id="moa-legend"></div>
+  </div>
+  <div class="card">
+    <h2><z>完整表格</z><e>Full table</e> <span class="hint"><z>隨機基準每類 &lt; 2.5%</z><e>random baseline &lt; 2.5% for every class</e></span></h2>
+    <div style="max-height:470px;overflow:auto"><table id="moatbl"></table></div>
+  </div>
+</div>
+<div class="card">
+  <ul class="clean" id="moa-notes"></ul>
+  <div class="disc" style="margin-top:10px"><b><z>關鍵結論：</z><e>Bottom line: </e></b><span id="moa-concl"></span></div>
+</div>
+
 <div class="sec-title"><z>06 · AI 能加什麼？可落地的功能設計</z><e>06 · What AI adds: deployable feature design</e></div>
 <div class="grid3">
   <div class="card"><h2><z>表徵學習 embedding</z><e>Representation learning</e></h2><ul class="clean">
@@ -392,8 +421,8 @@
 <div class="card"><ul class="clean">
   <li><z><b>避開紅海：</b>不做「分子結構 → 性質預測」那種過度 benchmark 的題目，改做<b>表徵學習＋檢索</b>——輸入是細胞影像，不是分子式。</z><e><b>Avoid the crowded space:</b> not another "molecular structure → property prediction" benchmark. This is <b>representation learning + retrieval</b>, and the input is a cell image, not a formula.</e></li>
   <li><z><b>切入點：</b>形態指紋的 <b>MoA 檢索 / 批次去偏 / 以圖找相似藥</b>；solo 玩家少、CV 技能可直接用、資料真實龐大。</z><e><b>The angle:</b> <b>MoA retrieval, batch de-biasing and image-based drug similarity</b> on morphological fingerprints — few solo developers work here, CV skills transfer directly, and the data is real and large.</e></li>
-  <li><z><b>路線圖：</b>① 影像→自建指紋（已完成）→ ② CellProfiler profiles＋最近鄰檢索（已完成）→ ③ 雙指標＋block CI 的去偏驗證（已完成，含真實 JUMP-Target）→ ④ 自監督影像 embedding → ⑤ 擴到 JUMP cpg0016 全量、建 FAISS 檢索與 LLM 機制解說。</z><e><b>Roadmap:</b> ① image → own fingerprint (done) → ② CellProfiler profiles + nearest-neighbour retrieval (done) → ③ dual-metric, block-CI de-biasing validation (done, including real JUMP-Target) → ④ self-supervised image embeddings → ⑤ scale to full JUMP cpg0016 with FAISS retrieval and an LLM explanation layer.</e></li>
-  <li><z><b>可展示成果：</b>互動檢索網頁（本頁）、自建影像管線重現已知機制、去偏雙指標權衡圖（含 CI）、案例研究（紫杉醇 → 微管群）。</z><e><b>Demonstrable output:</b> this interactive app, an in-house image pipeline that recovers known biology, a dual-metric de-biasing trade-off figure with CIs, and case studies (paclitaxel → tubulin cluster).</e></li>
+  <li><z><b>路線圖：</b>① 影像→自建指紋（已完成）→ ② CellProfiler profiles＋最近鄰檢索（已完成）→ ③ 雙指標＋block CI 的去偏驗證（已完成，含真實 JUMP-Target）→ ④ 逐 MoA 拆解與適用範圍界定（已完成）→ ⑤ 自監督影像 embedding → ⑤ 擴到 JUMP cpg0016 全量、建 FAISS 檢索與 LLM 機制解說。</z><e><b>Roadmap:</b> ① image → own fingerprint (done) → ② CellProfiler profiles + nearest-neighbour retrieval (done) → ③ dual-metric, block-CI de-biasing validation (done, including real JUMP-Target) → ④ per-MoA breakdown and scope definition (done) → ⑤ self-supervised image embeddings → ⑤ scale to full JUMP cpg0016 with FAISS retrieval and an LLM explanation layer.</e></li>
+  <li><z><b>可展示成果：</b>互動檢索網頁（本頁）、自建影像管線重現已知機制、去偏雙指標權衡圖（含 CI）、逐 MoA 適用範圍拆解、案例研究（紫杉醇 → 微管群）。</z><e><b>Demonstrable output:</b> this interactive app, an in-house image pipeline that recovers known biology, a dual-metric de-biasing trade-off figure with CIs, a per-MoA breakdown that defines where the method applies, and case studies (paclitaxel → tubulin cluster).</e></li>
 </ul></div>
 
 <div class="sec-title"><z>08 · 資料來源與引用</z><e>08 · Data sources & citations</e></div>
@@ -1008,6 +1037,148 @@ function renderJumpNotes(){
     <b>exploratory</b>: they apply to CPJUMP1, a single-source pilot, and <b>do not extrapolate</b> to multi-source JUMP cpg0016.`);
 }
 RENDER.push(renderJumpNotes);
+
+
+/* ---------- 05d: per-MoA retrieval breakdown ---------- */
+const PM = DATA.per_moa || {rows:[], summary:{}};
+const C_T1 = '#29a79d', C_MAP = '#d4761f';        // validated pair (CVD ΔE 15.2, contrast >=3:1 on --panel2)
+let MINSZ = 5;
+const pct = v => (100*v).toFixed(0) + '%';
+
+function moaRows(){ return PM.rows.filter(r => r.n >= MINSZ); }
+
+function renderMoaKpi(){
+  const el=$('#moa-kpi'), s=PM.summary; if(!el||!s.n_classes) return;
+  const cells=[
+    [s.n_classes, L('個有 ≥2 個化合物的 MoA 類別','MoA classes with ≥2 compounds')],
+    [s.n_classes_perfect_top1, L('類別 Top-1 = 100%','classes at 100% Top-1')],
+    [s.n_classes_zero_top1, L('類別 Top-1 = 0%','classes at 0% Top-1')],
+    [pct(s.top1_share_from_top5_classes), L('的 Top-1 命中來自前 5 個類別','of all Top-1 hits come from 5 classes')]];
+  el.innerHTML = cells.map(([n,l])=>`<div class="card" style="padding:13px 14px">
+    <div style="font-size:22px;color:var(--rna);font-variant-numeric:tabular-nums">${n}</div>
+    <div style="font-size:9.5px;color:var(--dim);margin-top:4px;line-height:1.5">${l}</div></div>`).join('');
+}
+RENDER.push(renderMoaKpi);
+
+function renderMoaLede(){
+  const el=$('#moa-lede'), s=PM.summary; if(!el||!s.n_classes) return;
+  const top1 = DATA.metrics.acc1, fold = DATA.metrics.fold;
+  el.innerHTML = L(
+   `頁首那個 <b>${pct(top1)}</b> 的 Top-1（${fold}× 隨機）是<b>對 ${s.n_classes} 個難度天差地遠的 MoA 類別取平均</b>的結果，
+    而平均數在這裡是會騙人的：<b>${s.n_classes_zero_top1} 個類別是 0%</b>，但另有一小群接近滿分，
+    而且<b>全部 Top-1 命中有 ${pct(s.top1_share_from_top5_classes)} 只來自 5 個類別</b>。<br><br>
+    把分布攤開之後，落差不是隨機的，而是<b>機制上可解釋的</b>：會改變細胞增殖、細胞骨架、染色質或蛋白質恆定的化合物，
+    本來就會改變形態，因此被檢索得很好；而多數受體配體在 A549 上不產生表型——不是方法失敗，是<b>這些細胞對那個受體沒有反應</b>。
+    這正是形態學檢索<b>該用在哪裡</b>的判準。`,
+   `The <b>${pct(top1)}</b> Top-1 headline (${fold}× chance) is an <b>average over ${s.n_classes} MoA classes of wildly different
+    difficulty</b> — and here the average misleads in both directions: <b>${s.n_classes_zero_top1} classes sit at 0%</b>, while a
+    small group is near-perfect, and <b>${pct(s.top1_share_from_top5_classes)} of all Top-1 hits come from just 5 classes</b>.<br><br>
+    Once the distribution is opened up, the split is not random but <b>mechanistically coherent</b>: compounds that perturb
+    proliferation, the cytoskeleton, chromatin or protein homeostasis change cell morphology, so they retrieve well. Most
+    receptor ligands produce no phenotype in A549 — that is not the method failing, it is <b>these cells not responding to that
+    receptor</b>. This is exactly the criterion for <b>where morphological retrieval belongs</b>.`);
+}
+RENDER.push(renderMoaLede);
+
+function drawMoaBars(){
+  const svg=$('#moabars'); if(!svg) return;
+  const rows=moaRows();
+  const W=470, ml=176, mr=46, mt=22, rowH=Math.max(19, Math.min(28, 430/Math.max(1,rows.length)));
+  const H=mt+rows.length*rowH+34; svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const x=v=>ml+(W-ml-mr)*v;
+  const bh=Math.min(7,(rowH-8)/2);                       // thin marks, 2px surface gap between the pair
+  let s='';
+  for(let g=0; g<=1.0001; g+=0.25){                      // recessive grid
+    s+=`<line x1="${x(g)}" x2="${x(g)}" y1="${mt-6}" y2="${mt+rows.length*rowH}" stroke="rgba(150,160,210,.10)"/>`;
+    s+=`<text x="${x(g)}" y="${mt-11}" fill="#828aa8" font-size="8.5" text-anchor="middle">${(100*g).toFixed(0)}%</text>`;
+  }
+  rows.forEach((r,i)=>{
+    const y0=mt+i*rowH+(rowH-(2*bh+2))/2;
+    const nm=r.moa.length>23 ? r.moa.slice(0,22)+'…' : r.moa;
+    s+=`<text x="${ml-9}" y="${y0+bh+4}" font-size="9.5" text-anchor="end">`
+      +`<tspan fill="#e9ecf8">${nm}</tspan><tspan fill="#828aa8" font-size="8"> ${r.n}</tspan></text>`;
+    const w1=Math.max(1.5,x(r.top1)-ml), w2=Math.max(1.5,x(r.mAP)-ml);
+    s+=`<rect class="mb" data-i="${i}" x="${ml}" y="${y0}" width="${w1}" height="${bh}" rx="3" fill="${C_T1}"/>`;
+    s+=`<rect class="mb" data-i="${i}" x="${ml}" y="${y0+bh+2}" width="${w2}" height="${bh}" rx="3" fill="${C_MAP}"/>`;
+    if(i<6) s+=`<text x="${x(r.top1)+5}" y="${y0+bh}" fill="#e9ecf8" font-size="9" font-variant-numeric="tabular-nums">${pct(r.top1)}</text>`;
+    s+=`<rect class="mhit" data-i="${i}" x="${ml}" y="${mt+i*rowH}" width="${W-ml-mr}" height="${rowH}" fill="transparent"/>`;
+  });
+  svg.innerHTML=s;
+  const tp=$('#tip');
+  svg.querySelectorAll('.mhit').forEach(el=>{
+    el.addEventListener('mousemove',ev=>{
+      const r=rows[+el.dataset.i];
+      tp.style.display='block'; tp.style.left=(ev.clientX+12)+'px'; tp.style.top=(ev.clientY+12)+'px';
+      tp.innerHTML=`<b>${r.moa}</b><br>${L('化合物','compounds')} n=${r.n}<br>`
+        +`Top-1 ${pct(r.top1)} · Top-5 ${pct(r.top5)}<br>mAP ${r.mAP.toFixed(3)}<br>`
+        +`<span style="color:#828aa8">${L('隨機基準','chance')} ${pct(r.rand)}</span>`;
+    });
+    el.addEventListener('mouseleave',()=>{tp.style.display='none';});
+  });
+  $('#moa-legend').innerHTML =
+    `<span><i style="display:inline-block;width:12px;height:6px;border-radius:3px;background:${C_T1};vertical-align:middle"></i> Top-1</span>`
+   +`<span><i style="display:inline-block;width:12px;height:6px;border-radius:3px;background:${C_MAP};vertical-align:middle"></i> mAP</span>`
+   +`<span style="color:var(--dim)">${L('n = 該類別的化合物數','n = compounds in the class')}</span>`;
+}
+RENDER.push(drawMoaBars);
+
+function renderMoaTable(){
+  const el=$('#moatbl'); if(!el||!PM.rows.length) return;
+  let h=`<thead><tr><th>MoA</th><th>n</th><th>Top-1</th><th>Top-5</th><th>mAP</th></tr></thead><tbody>`;
+  PM.rows.forEach(r=>{
+    const col=r.top1>0 ? 'var(--ink)' : 'var(--dim)';
+    h+=`<tr><td style="color:${col}">${r.moa}</td><td style="color:var(--dim)">${r.n}</td>`
+      +`<td style="font-variant-numeric:tabular-nums;color:${col}">${pct(r.top1)}</td>`
+      +`<td style="font-variant-numeric:tabular-nums;color:var(--dim)">${pct(r.top5)}</td>`
+      +`<td style="font-variant-numeric:tabular-nums;color:var(--dim)">${r.mAP.toFixed(3)}</td></tr>`;
+  });
+  el.innerHTML=h+'</tbody>';
+}
+RENDER.push(renderMoaTable);
+
+function renderMoaNotes(){
+  const ul=$('#moa-notes'), cc=$('#moa-concl'), s=PM.summary; if(!ul||!s.n_classes) return;
+  const by=n=>PM.rows.find(r=>r.moa===n)||{top1:0,top5:0,mAP:0,n:0};
+  const win=['Aurora kinase inhibitor','HDAC inhibitor','mTOR inhibitor','glucocorticoid receptor agonist','proteasome inhibitor'];
+  const lose=['adrenergic receptor antagonist','histamine receptor antagonist','dopamine receptor antagonist','phosphodiesterase inhibitor'];
+  const f=n=>`${n} (n=${by(n).n}) ${pct(by(n).top1)}`;
+  const items=[
+   [`<b>有效的一群，機制上是一致的。</b>${win.map(n=>`<u>${n.replace(' inhibitor','').replace(' agonist','')}</u> ${pct(by(n).top1)}`).join('、')}
+     ——全都是直接干擾細胞週期、染色質、蛋白質降解或生長訊號的化合物。它們讓細胞<b>看起來就不一樣</b>：核變大、分裂受阻、細胞骨架重組。
+     形態指紋抓的正是這些。proteasome inhibitor 的 Top-1 只有 ${pct(by('proteasome inhibitor').top1)}，但 Top-5 是 ${pct(by('proteasome inhibitor').top5)}——同類確實聚在一起，只是最近的那一個不一定同類。`,
+    `<b>The classes that work share a mechanism.</b> ${win.map(n=>`<u>${n.replace(' inhibitor','').replace(' agonist','')}</u> ${pct(by(n).top1)}`).join(', ')}
+     — every one of them directly perturbs the cell cycle, chromatin, protein degradation or growth signalling. They make cells <b>look different</b>: enlarged nuclei, arrested division, a reorganised cytoskeleton. That is precisely what a morphological fingerprint encodes. Proteasome inhibitors reach only ${pct(by('proteasome inhibitor').top1)} Top-1 but ${pct(by('proteasome inhibitor').top5)} Top-5 — the class does cluster, the single nearest neighbour just is not always a class member.`],
+   [`<b>無效的一群，也是機制上一致的。</b>${lose.map(n=>`<u>${n.replace(' receptor','').replace(' inhibitor','').replace(' antagonist',' antag.')}</u>`).join('、')}
+     全部 0%。這些是 GPCR／離子通道／訊號調節劑，在 <b>A549 肺上皮細胞</b>上多半不產生可見表型——可能該受體根本不表現，
+     或其效應不改變細胞外觀。<b>沒有表型，就沒有形態指紋可抓</b>；這是資料的邊界，不是演算法的失敗。`,
+    `<b>The classes that fail are equally coherent.</b> ${lose.map(n=>`<u>${n.replace(' receptor','').replace(' inhibitor','').replace(' antagonist',' antag.')}</u>`).join(', ')} — all at 0%.
+     These are GPCR, ion-channel and signalling modulators that mostly produce no visible phenotype in <b>A549 lung epithelial cells</b>: the receptor may not be expressed, or its effect may not change how the cell looks. <b>No phenotype means no morphology to fingerprint.</b> That is a boundary of the data, not a failure of the algorithm.`],
+   [`<b>但「受體配體都不行」是錯的結論。</b><u>glucocorticoid receptor agonist</u> 也是受體配體，Top-1 卻有 ${pct(by('glucocorticoid receptor agonist').top1)}（n=${by('glucocorticoid receptor agonist').n}）。
+     差別在於 A549 確實表現 GR，而且它的下游是強烈的轉錄重編程。正確的判準不是「是不是受體藥」，而是<b>這個細胞株對它有沒有反應</b>。`,
+    `<b>But "receptor ligands don't work" would be the wrong lesson.</b> <u>Glucocorticoid receptor agonists</u> are receptor ligands too, and they reach ${pct(by('glucocorticoid receptor agonist').top1)} Top-1 (n=${by('glucocorticoid receptor agonist').n}).
+     The difference is that A549 does express GR, and its downstream effect is a strong transcriptional reprogramming. The right criterion is not "is it a receptor drug" but <b>does this cell line respond to it</b>.`],
+   [`<b>兩種平均給出不同的數字。</b>逐類別平均（macro）mAP = <b>${s.mAP_macro_per_class}</b>，依查詢數加權則是 <b>${s.mAP_query_weighted}</b>。
+     macro 較低，因為小類別表現較差；本頁其他地方引用的是查詢加權版。兩個都報，是因為<b>只報一個就等於選了一個對自己有利的定義</b>。`,
+    `<b>Two averages give two numbers.</b> Macro-averaged per class, mAP = <b>${s.mAP_macro_per_class}</b>; weighted by query count it is <b>${s.mAP_query_weighted}</b>.
+     The macro figure is lower because small classes do worse; the query-weighted one is what the rest of this page quotes. Both are reported because <b>quoting only one is choosing whichever definition flatters you</b>.`],
+   [`<b>功效的告誡。</b>${PM.rows.filter(r=>r.n===2).length} 個類別只有 2 個化合物，此時 Top-1 只能是 0% 或 100%，雜訊極大——
+     上方圖預設過濾為 n ≥ 5。真正可信的是那些 n ≥ 5 且 Top-1 高的類別（Aurora、mTOR、GR agonist），而非任何單一的 2 化合物類別。`,
+    `<b>A power caveat.</b> ${PM.rows.filter(r=>r.n===2).length} classes contain only 2 compounds, where Top-1 can only be 0% or 100% — extremely noisy. The chart above therefore defaults to n ≥ 5. What is trustworthy is the classes with n ≥ 5 <i>and</i> high Top-1 (Aurora, mTOR, GR agonists), not any individual two-compound class.`]
+  ];
+  ul.innerHTML=items.map(([z,e])=>`<li>${L(z,e)}</li>`).join('');
+  cc.innerHTML=L(
+   `一個 ${pct(DATA.metrics.acc1)} 的平均值，實際上是「一小群機制明確的化合物接近解決，其餘大多數在雜訊裡」。
+    對真實用途而言，後者才是重點：<b>形態學檢索不是通用的 MoA 分類器，而是一個對「會改變細胞外觀的擾動」極為靈敏的工具</b>。
+    知道它在哪裡失效，和知道它在哪裡有效同樣重要——也決定了下一步該投資在哪：更強的表徵能提升中段類別，但無法為沒有表型的化合物<b>無中生有</b>。`,
+   `A ${pct(DATA.metrics.acc1)} average is really "a small group of mechanistically distinct compounds is nearly solved, and most of the rest sits in noise".
+    For real use the second half is the point: <b>morphological retrieval is not a general-purpose MoA classifier — it is an instrument that is extremely sensitive to perturbations which change how a cell looks</b>.
+    Knowing where it fails matters as much as knowing where it works, and it decides where to invest next: a stronger representation can lift the middle of the distribution, but nothing <b>conjures a phenotype</b> for a compound that does not produce one.`);
+}
+RENDER.push(renderMoaNotes);
+
+$$('.msz').forEach(b=>b.onclick=()=>{
+  MINSZ=+b.dataset.n; $$('.msz').forEach(x=>x.classList.toggle('on', x===b)); drawMoaBars();
+});
 
 $('#lang-en').onclick=()=>{ LANG='en'; applyLang(); };
 $('#lang-zh').onclick=()=>{ LANG='zh'; applyLang(); };

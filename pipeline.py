@@ -140,6 +140,50 @@ def retrieval_metrics(Z, moa):
     return dict(acc1=round(t1/len(elig), 3), top5_recall=round(t5/len(elig), 3),
                 random=round(rnd, 4), fold=round((t1/len(elig))/rnd, 1), n_eval=len(elig))
 
+def per_moa_breakdown(Z, moa):
+    """Per-MoA retrieval breakdown.
+
+    A single headline Top-1 is a query-weighted average over MoA classes with wildly
+    different difficulty, so it hides the actual shape of the result: a handful of classes
+    with strong, distinctive morphology are retrieved almost perfectly, while most classes
+    (largely receptor ligands with no characteristic phenotype) sit at zero. Reporting the
+    distribution is more honest than reporting its mean, and it is what tells you when the
+    method is usable.
+
+    Returns (rows, summary). Each row: MoA, n compounds, Top-1, Top-5, mAP, and the
+    self-excluded random Top-1 baseline for a class of that size, (n-1)/(P-1).
+    """
+    sim = cosine_similarity(Z); np.fill_diagonal(sim, -np.inf)
+    pool = [i for i in range(len(moa)) if isinstance(moa[i], str)]
+    poolset = set(pool); P = len(pool); cnt = Counter(moa[i] for i in pool)
+    elig = [i for i in pool if cnt[moa[i]] >= 2]
+    per = {}
+    for i in elig:
+        order = [j for j in np.argsort(-sim[i]) if j in poolset and j != i]
+        rels = [1 if moa[j] == moa[i] else 0 for j in order]
+        d = per.setdefault(moa[i], {"n": cnt[moa[i]], "t1": 0, "t5": 0, "ap": [], "q": 0})
+        d["q"] += 1
+        d["t1"] += int(rels[0] == 1)
+        d["t5"] += int(any(rels[:5]))
+        d["ap"].append(average_precision(rels))
+    rows = []
+    for m, d in per.items():
+        rows.append({"moa": m, "n": d["n"], "queries": d["q"],
+                     "top1": round(d["t1"]/d["q"], 3), "top5": round(d["t5"]/d["q"], 3),
+                     "mAP": round(float(np.nanmean(d["ap"])), 3),
+                     "rand": round((d["n"]-1)/(P-1), 4)})
+    rows.sort(key=lambda r: (-r["top1"], -r["mAP"], -r["n"]))
+    n_zero = sum(1 for r in rows if r["top1"] == 0)
+    q_weighted = float(np.average([r["mAP"] for r in rows], weights=[r["queries"] for r in rows]))
+    summary = {"n_classes": len(rows), "n_classes_zero_top1": n_zero,
+               "n_classes_perfect_top1": sum(1 for r in rows if r["top1"] == 1.0),
+               "mAP_macro_per_class": round(float(np.mean([r["mAP"] for r in rows])), 3),
+               "mAP_query_weighted": round(q_weighted, 3),
+               "top1_share_from_top5_classes": round(
+                   sum(r["top1"]*r["queries"] for r in rows[:5]) /
+                   max(1, sum(r["top1"]*r["queries"] for r in rows)), 3)}
+    return rows, summary
+
 # ─────────────────────────── de-biasing (raw / sphered / +harmony) ───────────
 def zca(Xt, dmso):
     mu = dmso.mean(0)
@@ -236,6 +280,7 @@ def main():
     sim = cosine_similarity(Z); np.fill_diagonal(sim, -np.inf)
     met = retrieval_metrics(Z, moa)
 
+    moa_rows, moa_summary = per_moa_breakdown(Z, moa)
     import umap
     emb = umap.UMAP(n_neighbors=15, min_dist=0.4, metric="cosine", random_state=42).fit_transform(Z)
     top_moa = [m for m, _ in Counter([x for x in moa if isinstance(x, str)]).most_common(10)]
@@ -271,6 +316,7 @@ def main():
         "acc1": met["acc1"], "top5_recall": met["top5_recall"], "random": met["random"],
         "fold": met["fold"], "n_eval": met["n_eval"], "thr": round(thr, 1),
         "hit_metric": "candidate-active: consensus L2 distance from DMSO centre > DMSO-null P95 (heuristic screen, not a significance test)"},
+      "per_moa": {"rows": moa_rows, "summary": moa_summary},
       "classes": top_moa,
       "moa_sizes": dict(Counter([x for x in moa if isinstance(x, str)]).most_common(12)),
       "drugs": drugs, "fp_types": fp_types,
@@ -279,6 +325,10 @@ def main():
     }
     json.dump(out, open(WEB/"webdata.json", "w", encoding="utf-8"))
     dd = out["debias"]
+    ms = out["per_moa"]["summary"]
+    print(f"per-MoA: {ms['n_classes']} classes  perfect-top1={ms['n_classes_perfect_top1']}  "
+          f"zero-top1={ms['n_classes_zero_top1']}  mAP macro={ms['mAP_macro_per_class']} "
+          f"query-weighted={ms['mAP_query_weighted']}")
     print(f"drugs={len(ids)}  hit={100*out['metrics']['hit_frac']:.0f}%  "
           f"top1={100*met['acc1']:.1f}% ({met['fold']}x rand={100*met['random']:.2f}%)  top5={100*met['top5_recall']:.1f}%")
     print(f"debias mAP raw={dd['mAP']['raw']} {dd['ci']['raw']}  sphered={dd['mAP']['sphered']} {dd['ci']['sphered']}  "
