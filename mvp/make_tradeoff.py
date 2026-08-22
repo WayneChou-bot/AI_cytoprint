@@ -41,12 +41,14 @@ T = {
    note="<b>Honest reading (recomputed after fixing an extreme-value contamination bug):</b> the three methods have "
         "<b>almost identical biology signal</b> (mAP raw {r} / sphered {s} / +Harmony {h}; every pairwise paired-block Δ "
         "has a 95% CI that <b>crosses zero</b>, i.e. no significant difference). On the batch axis, "
-        "<b>Harmony clearly improves mixing</b> ({br}× → {bh}×, toward 1) at <b>no measurable biology cost</b>; "
-        "sphering alone is slightly worse.<br><br>"
+        "<b>Harmony clearly improves mixing</b> ({br}× → {bh}×, toward 1) with <b>no biology loss detectable at this "
+        "sample size</b> — which is not the same as no cost; sphering alone is slightly worse.<br><br>"
         "Lesson: <b>de-biasing must be judged on both axes at once — biology retention and batch removal — using a "
         "plate-block bootstrap and paired Δ CIs.</b> This is a <b>single-centre</b> pilot where batch effects are small "
         "by construction, so most differences are not significant and <b>should not be generalized</b>. The same engine "
-        "(jump_mvp.py) on multi-source JUMP, with <b>source</b> as the block, is where correction really earns its keep.<br><br>"
+        "(jump_mvp.py) runs on the CPJUMP1 pilot, which is <b>also single-source</b> and where plate turns out to be "
+        "confounded with cell line and timepoint — see section 05c of the main page. Applying this to genuinely "
+        "multi-source data, with <b>source</b> as the block, remains future work: nothing here demonstrates it.<br><br>"
         "(For contrast: an earlier version reported \"Harmony loses on both axes\" — that was <b>an artefact of contaminated "
         "data</b>. After cleaning, the conclusion reversed, which is exactly why data quality and rigorous evaluation are "
         "both indispensable.)",
@@ -61,10 +63,12 @@ T = {
    th=["", "方法", "生物訊號 mAP（95% CI）", "批次混合（95% CI）"],
    note="<b>誠實解讀（已修掉極端值污染後重算）：</b>三種方法的<b>生物訊號幾乎相同</b>"
         "（mAP raw {r} / sphered {s} / +Harmony {h}；兩兩 paired block Δ 的 95% CI <b>都跨 0</b>，即無顯著差異）。"
-        "批次軸上 <b>Harmony 明顯改善混合</b>（{br}× → {bh}×，往 1 靠），且<b>沒有付出可測的生物代價</b>；單獨球化則略微變差。<br><br>"
+        "批次軸上 <b>Harmony 明顯改善混合</b>（{br}× → {bh}×，往 1 靠），<b>且在此樣本量下測不到生物損失</b>"
+        "——「測不到」不等於「沒有代價」；單獨球化則略微變差。<br><br>"
         "教訓：<b>去偏必須同時看「生物保存」與「批次移除」兩軸，並用 plate-block bootstrap 與 paired Δ CI。</b>"
         "本結果為<b>單一中心</b> pilot、批次效應本就小，故差異多不顯著，<b>不能一般化</b>；同一引擎（jump_mvp.py）"
-        "在多來源 JUMP 以 <b>source</b> 為 block、批次效應大時，才是校正真正該發揮的場景。<br><br>"
+        "跑的 CPJUMP1 pilot <b>同樣是單一 source</b>，且 plate 與 cell line、timepoint 混雜（見主頁 05c）。"
+        "真正的多來源校正（以 <b>source</b> 為 block）仍是未來工作，本 repo 尚未示範。<br><br>"
         "（對照：先前「Harmony 兩軸皆輸」是<b>資料污染的假象</b>，清理後結論反轉——正說明資料品質與嚴謹評估缺一不可。）",
    lang="zh-Hant", pagetitle="去偏雙指標權衡（真實 · 含 CI）"),
 }

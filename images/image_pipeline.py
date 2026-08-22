@@ -15,14 +15,19 @@ image_pipeline.py — 真正的「影像 → 形態指紋」管線(這是作品�
   4. 每顆細胞量化:形狀(面積/周長/離心率/緊緻度) + 各通道亮度(核內/質內) + 紋理(Laplacian/局部變異)
   5. 與 DMSO 對照比較,輸出 z-score 指紋
 
-通道對應(重要,見 README 說明):
-  ch5 = DNA        ← 視覺與分割確認(圓形核、背景乾淨)
-  ch1 = Mito       ← 核內/質比最低、核仁對比最低(MitoTracker 不染核仁)
-  ch2/3/4 = AGP / RNA / ER  ← 由上述兩端錨定,依「波長由長到短」推定;非官方文件確認
-  ch6-8 = Brightfield(3 個 z 平面)
-  權威對應在 repo 的 load_data csv(git-lfs),可自行驗證:
+通道對應 —— 已由官方 load_data 表**確認**(不再是推定):
+  來源: load_data_csv/2020_11_04_CPJUMP1/BR00117010/load_data.csv.gz 的 FileName_Orig* 欄位,
+  該表由 CellProfiler pipeline 直接使用,是通道對應的權威來源。第一列實測:
+    FileName_OrigMito  -> ...-ch1...tiff      ch1 = Mito
+    FileName_OrigAGP   -> ...-ch2...tiff      ch2 = AGP
+    FileName_OrigRNA   -> ...-ch3...tiff      ch3 = RNA
+    FileName_OrigER    -> ...-ch4...tiff      ch4 = ER
+    FileName_OrigDNA   -> ...-ch5...tiff      ch5 = DNA
+    FileName_OrigHighZBF/LowZBF/Brightfield -> ch6 / ch7 / ch8 (3 個明場 z 平面)
+  自行複驗:
     git lfs pull --include="load_data_csv/2020_11_04_CPJUMP1/BR00117010/load_data.csv.gz"
-    python -c "import pandas as pd;d=pd.read_csv('...load_data.csv.gz');print([c for c in d.columns if 'FileName' in c]);print(d.iloc[0])"
+    python -c "import gzip,csv,re;r=next(csv.DictReader(gzip.open('load_data.csv.gz','rt')));\
+print({k[13:]:re.search(r'-(ch\\d)',v).group(1) for k,v in r.items() if k.startswith('FileName_Orig')})"
 """
 import json, base64, io, sys
 from pathlib import Path
@@ -31,7 +36,7 @@ from PIL import Image
 from scipy import ndimage as ndi
 from skimage import filters, morphology, measure, segmentation, exposure, feature
 
-CH = {1: "Mito", 2: "AGP", 3: "RNA", 4: "ER", 5: "DNA"}          # 見檔頭說明
+CH = {1: "Mito", 2: "AGP", 3: "RNA", 4: "ER", 5: "DNA"}          # 由 load_data.csv.gz 確認,見檔頭
 COLOR = {"DNA": (90, 134, 255), "RNA": (90, 224, 214), "ER": (90, 208, 122),
          "AGP": (255, 154, 70), "Mito": (255, 107, 208)}
 ORDER = ["DNA", "RNA", "ER", "AGP", "Mito"]
@@ -216,8 +221,8 @@ def main():
     if "DMSO" in web:
         web["DMSO"]["neighbors"] = []       # 對照組本身:無最近鄰(零向量)
     payload = {"channel_map": {f"ch{k}": v for k, v in CH.items()},
-               "channel_note": "ch5=DNA 與 ch1=Mito 為實證確認;ch2/3/4 依波長順序推定(見程式檔頭)",
-               "channel_note_en": "ch5=DNA and ch1=Mito determined empirically; ch2/3/4 inferred from acquisition wavelength order (see module docstring)",
+               "channel_note": "五通道對應已由官方 load_data.csv.gz 的 FileName_Orig* 欄位確認(ch1=Mito, ch2=AGP, ch3=RNA, ch4=ER, ch5=DNA)",
+               "channel_note_en": "Channel mapping confirmed against the official load_data.csv.gz FileName_Orig* columns (ch1=Mito, ch2=AGP, ch3=RNA, ch4=ER, ch5=DNA)",
                "source": "JUMP pilot CPJUMP1 (cpg0000) example_images · plates BR00117010-13 · U2OS · 1 field/compound",
                "feature_names": cols, "n_features": len(cols), "order": ORDER, "compounds": web}
     (OUT/"webimages.json").write_text(json.dumps(payload), encoding="utf-8")

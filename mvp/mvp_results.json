@@ -4,7 +4,7 @@
   "n_plates": 50,
   "n_features": 587,
   "pca_dims": 50,
-  "bootstrap_draws": 100,
+  "bootstrap_draws": 1000,
   "metrics": {
     "biology": "MoA-retrieval mAP (higher=better)",
     "batch": "plate-mixing enrichment (1.0=mixed, >1=batch structure)"
@@ -13,54 +13,64 @@
     "raw": {
       "biology_mAP": 0.087,
       "biology_ci": [
-        0.081,
-        0.1
+        0.08,
+        0.096
       ],
       "batch_mixing": 2.42,
       "batch_ci": [
-        2.21,
-        2.65
+        2.07,
+        2.77
       ]
     },
     "sphered": {
       "biology_mAP": 0.087,
       "biology_ci": [
-        0.075,
-        0.089
+        0.079,
+        0.096
       ],
       "batch_mixing": 3.0,
       "batch_ci": [
-        2.83,
-        3.28
+        2.68,
+        3.36
       ],
       "delta_bio_vs_raw": {
-        "value": -0.008,
+        "value": -0.0,
         "ci": [
-          -0.016,
-          0.001
+          -0.009,
+          0.008
         ],
-        "p_gt0": 0.06
+        "bootstrap_mean": -0.007,
+        "p_gt0": 0.492
       }
     },
     "sphered+harmony": {
-      "biology_mAP": 0.097,
+      "biology_mAP": 0.095,
       "biology_ci": [
-        0.084,
-        0.097
+        0.089,
+        0.102
       ],
-      "batch_mixing": 1.72,
+      "batch_mixing": 1.63,
       "batch_ci": [
-        1.63,
-        1.88
+        1.46,
+        1.8
       ],
       "delta_bio_vs_raw": {
-        "value": 0.002,
+        "value": 0.008,
         "ci": [
-          -0.005,
-          0.01
+          -0.001,
+          0.017
         ],
-        "p_gt0": 0.7
+        "bootstrap_mean": 0.001,
+        "p_gt0": 0.96
       }
+    },
+    "_bootstrap": {
+      "draws": 1000,
+      "n_blocks": 50,
+      "n_distinct_block_draws": 1000,
+      "point_estimate": "observed on full data",
+      "interval": "bootstrap dispersion recentred on the observed value",
+      "note": "block resolution adequate"
     }
   }
 }

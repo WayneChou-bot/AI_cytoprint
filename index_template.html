@@ -359,7 +359,7 @@
 </div>
 <div class="grid2">
   <div class="card">
-    <h2><z>條件訊號保留度：校正抹掉了什麼</z><e>Condition-signal retention: what correction erased</e> <span class="hint"><z>1.0 = 該生物差異已被完全抹平</z><e>1.0 = that biological difference is fully erased</e></span></h2>
+    <h2><z>條件關聯結構保留度</z><e>Condition-associated structure retention</e> <span class="hint"><z>1.0 = 該條件的可分辨結構已消失</z><e>1.0 = that condition is no longer distinguishable</e></span></h2>
     <svg id="retplot" class="plot" viewBox="0 0 460 250"></svg>
   </div>
   <div class="card">
@@ -454,8 +454,8 @@ const IMG = JSON.parse(document.getElementById('imgdata').textContent);
     const m=IMG.channel_map||{};
     const map=Object.keys(m).sort().map(k=>`${k}=${m[k]}`).join(', ');
     $('#img-chnote').innerHTML = map + ' — ' + L(
-      '其中 <b>ch5=DNA</b> 與 <b>ch1=Mito</b> 為實證確認，<b>ch2/3/4</b> 依取像波長順序推定（權威對照表在 repo 的 load_data_csv，走 Git LFS）。',
-      '<b>ch5=DNA</b> and <b>ch1=Mito</b> were determined empirically; <b>ch2/3/4</b> are inferred from acquisition wavelength order (the authoritative table lives in the upstream <code>load_data_csv</code>, tracked by Git LFS).');
+      '通道對應已比對上游 <code>load_data_csv</code>（CellProfiler pipeline 實際使用的權威對照表）<b>確認無誤</b>：ch1=Mito、ch2=AGP、ch3=RNA、ch4=ER、ch5=DNA、ch6–8=明場 z 平面。',
+      'The channel mapping was <b>verified</b> against the upstream <code>load_data_csv</code> — the authoritative table the CellProfiler pipeline itself consumes: ch1=Mito, ch2=AGP, ch3=RNA, ch4=ER, ch5=DNA, ch6–8 brightfield z-planes.');
   }
   $('#img-compounds').innerHTML = names.map(n=>`<button class="cbtn" data-c="${n}">${n}</button>`).join('');
   function chanBtns(){
@@ -848,8 +848,8 @@ function renderDebias(){
   ].filter(Boolean);
   $('#map-notes').innerHTML=notes.map(n=>`<li>${n}</li>`).join('');
   $('#map-concl').innerHTML=L(
-    `清理污染後，球化去偏對 MoA 檢索有<b>小幅但方向正確</b>的幫助（Δ=${up?'+':''}${dv.value}）；Harmony 的效果隨表徵而變，須以 repo <code>mvp/</code> 的<b>嚴謹雙指標 + block CI</b> 版為準（該版顯示 Harmony 改善批次混合、無可測生物代價）。這正說明批次校正必須<b>嚴謹驗證、並匹配真正的批次結構</b>——是把作品從 demo 推向可信分析的關鍵。`,
-    `After fixing the contamination, sphering gives a <b>small but correctly-directed</b> improvement in MoA retrieval (Δ=${up?'+':''}${dv.value}). Harmony's effect varies with the representation, so the <b>rigorous dual-metric + block-CI</b> evaluation in <code>mvp/</code> is the authoritative one (there, Harmony improves batch mixing at no measurable biology cost). This is exactly why batch correction must be <b>validated rigorously and matched to the real batch structure</b> — the step that moves this from a demo to a trustworthy analysis.`);
+    `清理污染後，球化去偏對 MoA 檢索有<b>小幅但方向正確</b>的幫助（Δ=${up?'+':''}${dv.value}）；Harmony 的效果隨表徵而變。<b>在 JUMP-Target 上，合併式雙指標分析一開始看起來是「改善混合、且 pooled MoA 檢索測不到損失」——但下方 05c 的分層分析顯示，這個詮釋被條件混雜污染了。</b>這正說明批次校正必須<b>嚴謹驗證、並匹配真正的批次結構</b>——是把作品從 demo 推向可信分析的關鍵。`,
+    `After fixing the contamination, sphering gives a <b>small but correctly-directed</b> improvement in MoA retrieval (Δ=${up?'+':''}${dv.value}). Harmony's effect varies with the representation. <b>On JUMP-Target, a pooled dual-metric analysis initially suggested improved mixing without detectable pooled MoA loss — but the stratified analysis in 05c below shows that this interpretation is confounded by condition.</b> This is exactly why batch correction must be <b>validated rigorously and matched to the real batch structure</b> — the step that moves this from a demo to a trustworthy analysis.`);
 }
 RENDER.push(renderDebias);
 
@@ -876,14 +876,17 @@ function renderJumpIntro(){
     合併全部 ${JUMP.n_wells.toLocaleString()} 個處理孔時，批次混合指標高達 <b>${fmt(pooledMix,2)}</b>，看起來批次效應極嚴重；
     但把資料<b>分層</b>成 ${nStrat} 組（每組同細胞株、同時間點，各 ${nPl} 個 plate、${nCmp} 個化合物）後，
     plate 之間的批次效應只剩 <b>${fmt(lo,2)}–${fmt(hi,2)}</b>。
-    <b>換句話說：合併分析裡看到的「巨大批次效應」，主要其實是被混雜進去的生物條件差異。</b>`,
+    <b>換句話說：合併時的 plate-label 富集，主要由<u>條件之間的結構</u>（between-condition structure）主導</b>——
+    由於 plate 與條件完全混雜，這份結構<b>無法</b>被拆解成「技術批次」與「生物差異」兩部分。`,
    `Across the ${JUMP.n_plates} compound plates in <b>CPJUMP1</b>, <b>each plate contains exactly one cell line and one
     timepoint</b> — plate is perfectly <b>nested</b> within (cell line × timepoint). A plate-block batch correction therefore
     <b>cannot</b> be separated from erasing genuine cell-line / timepoint biology.<br><br>
     Pooling all ${JUMP.n_wells.toLocaleString()} treated wells, the batch-mixing metric reaches <b>${fmt(pooledMix,2)}</b>,
     which looks like a severe batch effect. But after <b>stratifying</b> into ${nStrat} groups (same cell line and timepoint,
     ${nPl} plates and ${nCmp} compounds each), plate-to-plate batch effect drops to just <b>${fmt(lo,2)}–${fmt(hi,2)}</b>.
-    <b>In other words: most of the "huge batch effect" in the pooled analysis was the confounded biological condition.</b>`);
+    <b>In other words: the pooled plate-label enrichment was dominated by <u>between-condition structure</u></b> —
+    and because plate is perfectly confounded with condition, that structure <b>cannot</b> be decomposed into
+    technical and biological parts.`);
 }
 RENDER.push(renderJumpIntro);
 
@@ -958,31 +961,49 @@ function renderJumpNotes(){
   const nQ=Object.values(S).reduce((a,st)=>a+st.n_evaluable_queries,0);
   const items=[
    [`<b>混雜的代價可以量化。</b>合併分析中 Harmony 把批次混合從 ${fmt(P.raw?.batch_mixing,2)} 壓到 ${fmt(P['sphered+harmony']?.batch_mixing,2)}（近乎完美混合），看起來成效卓著；
-     但同一組 embedding 的<b>條件訊號保留度</b>顯示，時間點的生物差異同時從 ${fmt(R.raw?.timepoint,2)} 掉到 ${fmt(R['sphered+harmony']?.timepoint,2)}——
-     幾乎完全被抹平。細胞株訊號也從 ${fmt(R.raw?.cell_line,2)} 降到 ${fmt(R['sphered+harmony']?.cell_line,2)}。<b>「批次移除」的成績有相當部分是刪掉真生物換來的。</b>`,
+     但同一組 embedding 的<b>條件關聯結構</b>同時被大幅移除：時間點從 ${fmt(R.raw?.timepoint,2)} 掉到 ${fmt(R['sphered+harmony']?.timepoint,2)}、
+     細胞株從 ${fmt(R.raw?.cell_line,2)} 降到 ${fmt(R['sphered+harmony']?.cell_line,2)}。由於條件與 plate 完全混雜，這份被移除的結構
+     <b>可能包含真實的生物差異，也可能是技術效應</b>——<b>本設計無法量化兩者各佔多少</b>。能確定的是：「批次移除」的分數，
+     是靠移除條件關聯結構換來的，而<b>其中的生物成分有受損風險</b>。`,
     `<b>The cost of confounding is measurable.</b> In the pooled analysis Harmony drives batch mixing from ${fmt(P.raw?.batch_mixing,2)} down to ${fmt(P['sphered+harmony']?.batch_mixing,2)} (near-perfect mixing), which looks like a triumph.
-     But <b>condition-signal retention</b> on the same embeddings shows the timepoint difference collapsing from ${fmt(R.raw?.timepoint,2)} to ${fmt(R['sphered+harmony']?.timepoint,2)} — essentially erased — and the cell-line signal falling from ${fmt(R.raw?.cell_line,2)} to ${fmt(R['sphered+harmony']?.cell_line,2)}.
-     <b>A large share of that "batch removal" was bought by deleting real biology.</b>`],
+     But it also substantially removes <b>condition-associated structure</b> on the same embeddings: timepoint falls from ${fmt(R.raw?.timepoint,2)} to ${fmt(R['sphered+harmony']?.timepoint,2)} and cell line from ${fmt(R.raw?.cell_line,2)} to ${fmt(R['sphered+harmony']?.cell_line,2)}.
+     Because condition is confounded with plate, this structure <b>may include real biological differences</b>; <b>the present design cannot quantify how much is biological versus technical</b>.
+     What is certain is that the batch-mixing score was bought by removing condition-associated structure — and that <b>the biological part of it is at risk</b>.`],
    [`<b>分層之後，批次問題本身變小了。</b>在同細胞株、同時間點內比較 4 個 plate，原始批次混合只有 ${fmt(Math.min(...Object.values(S).map(s=>s.results.raw.batch_mixing)),2)}–${fmt(Math.max(...Object.values(S).map(s=>s.results.raw.batch_mixing)),2)}
-     （1.0 為完全混合），遠低於合併時的 ${fmt(P.raw?.batch_mixing,2)}。這是 CPJUMP1 <b>單一 source、單一 site</b> 的預期結果——真正棘手的跨 source 批次效應，本資料集看不到。`,
+     （1.0 為完全混合），遠低於合併時的 ${fmt(P.raw?.batch_mixing,2)}——合併時的富集主要來自條件之間的差異，而非同條件內的 plate 差異。
+     這是 CPJUMP1 <b>單一 source、單一 site</b> 的預期結果——真正棘手的跨 source 批次效應，本資料集看不到。`,
     `<b>Stratifying shrinks the problem itself.</b> Comparing the 4 plates within one cell line and timepoint, raw batch mixing is only ${fmt(Math.min(...Object.values(S).map(s=>s.results.raw.batch_mixing)),2)}–${fmt(Math.max(...Object.values(S).map(s=>s.results.raw.batch_mixing)),2)}
-     (1.0 = fully mixed), far below the pooled ${fmt(P.raw?.batch_mixing,2)}. That is what one expects from CPJUMP1's <b>single source, single site</b> design — the genuinely hard cross-source batch effect is simply not present in this dataset.`],
+     (1.0 = fully mixed), far below the pooled ${fmt(P.raw?.batch_mixing,2)} — the pooled enrichment came mostly from differences <i>between</i> conditions, not from plate-to-plate differences <i>within</i> one.
+     That is what one expects from CPJUMP1's <b>single source, single site</b> design — the genuinely hard cross-source batch effect is simply not present in this dataset.`],
    [allCross
-     ? `<b>在分層內，去偏沒有可測得的生物效益。</b>${Object.keys(S).length} 個分層 × 2 種校正方法，<b>全部 ${deltas.length} 個 Δ 的 95% CI 都跨過 0</b>——既測不到改善，也測不到明確損害。點估計最負的是 A549-24h 的 sphering+Harmony（${fmt(S['A549-24h']?.results['sphered+harmony']?.delta_bio_vs_raw?.value)}）。`
+     ? `<b>在分層內，去偏沒有可測得的生物效益。</b>${Object.keys(S).length} 個分層 × 2 種校正方法，<b>在目前這個探索性 bootstrap 下，全部 ${deltas.length} 個 Δ 的 95% CI 都跨過 0</b>——既測不到改善，也測不到明確損害。但四層之間<b>並不齊一</b>：A549-48h、U2OS-24h、U2OS-48h 的 |Δ| 都 ≤ 0.02，
+     A549-24h 卻是 ${fmt(S['A549-24h']?.results['sphered']?.delta_bio_vs_raw?.value)}（sphering）與 <b>${fmt(S['A549-24h']?.results['sphered+harmony']?.delta_bio_vs_raw?.value)}</b>（+Harmony）。
+     以每層 26 個查詢的功效，這既可能是該層真實的損害，也可能只是雜訊——<b>本資料無法分辨</b>，但它是最值得後續追查的訊號。`
      : `<b>分層內的 Δ 見下表。</b>`,
     allCross
-     ? `<b>Within strata, de-biasing yields no measurable biological benefit.</b> Across ${Object.keys(S).length} strata × 2 correction methods, <b>all ${deltas.length} Δ confidence intervals cross zero</b> — neither improvement nor clear harm is detectable. The most negative point estimate is sphering+Harmony on A549-24h (${fmt(S['A549-24h']?.results['sphered+harmony']?.delta_bio_vs_raw?.value)}).`
+     ? `<b>Within strata, de-biasing yields no measurable biological benefit.</b> Across ${Object.keys(S).length} strata × 2 correction methods, <b>under the current exploratory bootstrap all ${deltas.length} Δ confidence intervals cross zero</b> — neither improvement nor clear harm is detectable. The strata are <b>not uniform</b>, though: A549-48h, U2OS-24h and U2OS-48h all have |Δ| ≤ 0.02, while A549-24h shows ${fmt(S['A549-24h']?.results['sphered']?.delta_bio_vs_raw?.value)} (sphering) and <b>${fmt(S['A549-24h']?.results['sphered+harmony']?.delta_bio_vs_raw?.value)}</b> (+Harmony).
+     With 26 queries per stratum this could be real stratum-specific harm or just noise — <b>this data cannot tell them apart</b> — but it is the signal most worth chasing next.`
      : `<b>Per-stratum Δ values are in the table above.</b>`],
    [`<b>誠實的統計功效說明。</b>每個分層只有 ${Object.values(S)[0]?.n_evaluable_queries ?? '—'} 個合格查詢（MoA 類別需 ≥2 個化合物），合計 ${nQ} 個；CI 因此偏寬，<b>不足以排除中等幅度的效應</b>。此處的結論是「在此設計與此樣本量下測不到效益」，不是「去偏無效」。`,
-    `<b>An honest power statement.</b> Each stratum has only ${Object.values(S)[0]?.n_evaluable_queries ?? '—'} eligible queries (a MoA class needs ≥2 compounds), ${nQ} in total, so the intervals are wide and <b>cannot rule out moderate effects</b>. The claim here is "no benefit detectable at this design and sample size", not "de-biasing does not work".`]
+    `<b>An honest power statement.</b> Each stratum has only ${Object.values(S)[0]?.n_evaluable_queries ?? '—'} eligible queries (a MoA class needs ≥2 compounds), ${nQ} in total, so the intervals are wide and <b>cannot rule out moderate effects</b>. The claim here is "no benefit detectable at this design and sample size", not "de-biasing does not work".`],
+   [`<b>這個 bootstrap 本身的兩個限制。</b>① 點估計一律是<b>全資料上的觀測值</b>，bootstrap 只用來估計離散程度、區間再以觀測值重新錨定
+     ——因為 mAP 對「池子裡有哪些化合物」是非線性的，抽樣平均值會有偏（LINCS 上舊版把 Harmony 的 Δ 報成 −0.00，觀測值其實是 <b>+0.008</b>）。
+     ② 對 ${Object.values(S)[0]?.n_plates ?? 4} 個 plate 做 block bootstrap，本質上只有 <b>35 種相異重抽組合</b>，提高抽樣次數只細化權重、不提高解析度。
+     因此這裡的區間是<b>探索性</b>的，不是嚴格的頻率論保證。`,
+    `<b>Two limits of this bootstrap itself.</b> (1) Point estimates are always the <b>observed</b> statistics on the full data; the bootstrap supplies dispersion only and intervals are recentred on the observed value —
+     mAP depends non-linearly on which compounds are in the pool, so the mean of the draws is biased (on LINCS the old file reported Δ = −0.00 for Harmony where the observed difference is <b>+0.008</b>).
+     (2) A block bootstrap over ${Object.values(S)[0]?.n_plates ?? 4} plates has only <b>35 distinct resamples</b>, so raising the draw count refines weighting, not resolution.
+     These intervals are therefore <b>exploratory</b>, not a strict frequentist guarantee.`]
   ];
   ul.innerHTML=items.map(([z,e])=>`<li>${L(z,e)}</li>`).join('');
   cc.innerHTML=L(
-   `批次校正的價值<b>取決於實驗設計</b>。當批次與生物條件混雜時，漂亮的批次混合分數可能只是把生物訊號一起刪掉的副產品；
+   `批次校正的價值<b>取決於實驗設計</b>。當批次與條件完全混雜時，漂亮的批次混合分數可能是把條件關聯結構
+    （其中可能含真實生物訊號）一起移除的副產品；混雜使得「移掉的是技術還是生物」在本設計中<b>無法被識別</b>。
     唯一站得住腳的做法，是在<b>條件內</b>評估，並<b>同時</b>回報生物保存與批次移除兩個軸。本節結果標記為
     <b>探索性（exploratory）</b>，僅適用於 CPJUMP1 這個單一 source 的 pilot，<b>不可外推</b>到多來源的 JUMP cpg0016。`,
-   `The value of batch correction <b>depends on the experimental design</b>. When batch is confounded with biological condition,
-    a beautiful batch-mixing score can be a by-product of deleting the biology along with it. The only defensible procedure is to
+   `The value of batch correction <b>depends on the experimental design</b>. When batch is perfectly confounded with condition,
+    a beautiful batch-mixing score can be a by-product of removing condition-associated structure — structure that may contain real
+    biology. The confounding makes "technical or biological?" <b>unidentifiable</b> in this design. The only defensible procedure is to
     evaluate <b>within</b> condition and report biology retention and batch removal <b>together</b>. These results are marked
     <b>exploratory</b>: they apply to CPJUMP1, a single-source pilot, and <b>do not extrapolate</b> to multi-source JUMP cpg0016.`);
 }

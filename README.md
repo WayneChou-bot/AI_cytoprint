@@ -88,18 +88,18 @@ therefore cannot be separated from erasing genuine U2OS-vs-A549 and 24 h-vs-48 h
 
 Pooled (confounded — reported for reference only):
 
-| Representation | Biology (MoA mAP, 95 % CI) | Batch mixing (→1 is better) |
-|---|---|---|
-| raw | 0.154 [0.132, 0.213] | 3.17 [2.30, 3.19] |
-| sphered (ZCA) | 0.180 [0.114, 0.240] | 1.88 [1.66, 1.87] |
-| sphered + Harmony | 0.131 [0.107, 0.219] | 1.04 [1.01, 1.11] |
+| Representation | Biology (MoA mAP, 95 % CI) | Batch mixing (→1 is better) | Δ vs raw (95 % CI) |
+|---|---|---|---|
+| raw | 0.154 [0.130, 0.201] | 3.17 [2.65, 3.66] | — |
+| sphered (ZCA) | 0.180 [0.134, 0.246] | 1.88 [1.54, 2.18] | +0.025 [−0.044, +0.098] |
+| sphered + Harmony | 0.131 [0.087, 0.193] | 1.04 [0.85, 1.24] | −0.023 [−0.084, +0.045] |
 
 > **Harmony improved plate mixing, while pooled MoA retrieval showed no measurable loss. Because plate
 > is confounded with cell line and timepoint in CPJUMP1, this result cannot distinguish removal of
 > technical variation from removal of condition-specific biology.**
 
-**Condition-signal retention** measures exactly that (kNN same-label enrichment on the same embeddings;
-1.0 means the difference is gone):
+**Condition-associated structure retention** measures exactly that (kNN same-label enrichment on the same
+embeddings; 1.0 means the condition is no longer distinguishable):
 
 | Representation | Cell line | Timepoint |
 |---|---|---|
@@ -107,26 +107,49 @@ Pooled (confounded — reported for reference only):
 | sphered (ZCA) | 1.21 | 1.10 |
 | sphered + Harmony | 1.11 | **1.02** |
 
-Harmony's near-perfect batch mixing (3.17 → 1.04) coincides with the timepoint signal being **essentially
-erased** (1.28 → 1.02) and the cell-line signal being more than halved in excess-over-chance terms
-(1.62 → 1.11). A large share of that "batch removal" was paid for with real biology.
+Harmony's near-perfect batch mixing (3.17 → 1.04) coincides with the timepoint structure being **essentially
+erased** (1.28 → 1.02) and the cell-line structure more than halved in excess-over-chance terms (1.62 → 1.11).
+
+The correct reading is deliberately conservative. Harmony substantially removes **condition-associated
+structure**. Because condition is confounded with plate, that structure may include real biological
+differences — **the present design cannot quantify how much is biological versus technical**. What can be
+said is that the batch-mixing score was bought by removing condition-associated structure, and that the
+biological component of it is at risk. What cannot be said is that deleting real biology has been
+*demonstrated*.
 
 **Stratified** — evaluated within each `cell_line × timepoint` stratum, where plate *is* a genuine technical
 replicate (4 plates, ~1,000 wells, 260 compounds, 26 eligible MoA queries each):
 
 | Stratum | raw mAP | Δ sphered (95 % CI) | Δ sphered+Harmony (95 % CI) | raw batch mixing |
 |---|---|---|---|---|
-| A549-24h | 0.159 | −0.027 [−0.123, +0.062] | −0.051 [−0.131, +0.068] | 1.46 |
-| A549-48h | 0.187 | +0.006 [−0.046, +0.035] | 0.000 [−0.047, +0.047] | 1.11 |
-| U2OS-24h | 0.154 | −0.011 [−0.045, +0.043] | −0.005 [−0.072, +0.075] | 1.19 |
-| U2OS-48h | 0.166 | +0.001 [−0.042, +0.093] | +0.002 [−0.041, +0.082] | 1.59 |
+| A549-24h | 0.159 | **−0.069** [−0.160, +0.028] | **−0.098** [−0.166, +0.028] | 1.46 |
+| A549-48h | 0.187 | +0.020 [−0.030, +0.080] | +0.011 [−0.031, +0.056] | 1.11 |
+| U2OS-24h | 0.154 | −0.011 [−0.046, +0.042] | −0.012 [−0.079, +0.068] | 1.19 |
+| U2OS-48h | 0.166 | +0.014 [−0.032, +0.103] | +0.010 [−0.036, +0.088] | 1.59 |
 
 Two things follow. First, **the within-condition batch effect is modest**: raw batch mixing is 1.11–1.59,
-not the 3.17 seen when pooling — so most of the apparent batch effect *was* the confounded biological
-condition. That is what one expects from CPJUMP1, a single-source, single-site pilot. Second, **all eight
-Δ intervals cross zero**: at this design and sample size (26 eligible queries per stratum, 104 in total)
-neither correction produces a measurable biological benefit, nor clear harm. The intervals are wide and
-cannot rule out moderate effects — "not detectable here" is not "does not work".
+not the 3.17 seen when pooling — the pooled plate-label enrichment was dominated by *between-condition*
+structure, not by plate-to-plate differences within a condition. That is what one expects from CPJUMP1, a
+single-source, single-site pilot. Second, **under the current exploratory bootstrap all eight Δ intervals
+cross zero**: at this design and sample size (26 eligible queries per stratum, 104 in total) neither
+correction produces a measurable biological benefit, nor clear harm. The intervals are wide and cannot rule
+out moderate effects — "not detectable here" is not "does not work".
+
+The strata are not uniform, and that is worth flagging rather than averaging away. Three of the four sit at
+|Δ| ≤ 0.02, while **A549-24h alone shows −0.069 (sphering) and −0.098 (+Harmony)** — point estimates several
+times larger than anywhere else, with intervals that only just reach zero. With 26 queries per stratum this
+could be genuine stratum-specific harm or it could be noise; this data cannot separate the two. It is,
+however, the single most interesting thing to chase with more queries or more fields.
+
+Two properties of that bootstrap are worth stating plainly rather than burying. Point estimates are the
+**observed** statistics on the full data; the bootstrap supplies dispersion only, and intervals are
+recentred on the observed value. This matters: mAP depends non-linearly on which compounds are in the pool,
+so the mean of the bootstrap draws is biased. On LINCS the shipped file previously reported Δ = −0.00 for
+sphered+Harmony; the observed difference is **+0.008** (the bootstrap mean is +0.001, an eight-fold
+understatement that also crossed sign in earlier runs). Those versions reported the biased mean; they no
+longer do, and `bootstrap_mean` is now written alongside every Δ so the gap stays visible. Separately, a block bootstrap over 4 plates has only **35 distinct resamples** (`C(2k-1, k)`), so
+raising the draw count refines weighting, not resolution. Every result JSON carries
+`n_distinct_block_draws`; treat the stratum intervals as exploratory for that reason alone.
 
 `mvp/jump_mvp.py` performs all three steps automatically: it detects and reports the nesting, runs the
 condition-retention diagnostic, and evaluates within strata, writing `"status": "exploratory"` and an
@@ -191,6 +214,7 @@ images/
 
 mvp/
   rigorous_eval.py          Dual-metric evaluation engine + plate-block bootstrap
+  test_condition_retention.py  Synthetic validation of the condition diagnostic (no data needed)
   jump_mvp.py               Same engine on real JUMP-Target (CPJUMP1)
   make_tradeoff.py          Renders the trade-off figure
   mvp_results.json          LINCS results

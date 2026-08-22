@@ -120,10 +120,14 @@ def sanitize(df, feat):
     return sel, df
 
 def condition_retention(emb, labels, k=25, subs=3000, seed=0):
-    """校正後還分得出這個條件嗎? kNN 同標籤富集度(1.0=已完全抹平, 越高=訊號保留越多)。
+    """校正後,這個條件還分得出來嗎? kNN 同標籤富集度(1.0=已完全抹平, 越高=結構保留越多)。
 
-    用來檢查:對 plate 做校正時,因為 plate 巢狀於 cell_line×timepoint,
-    有沒有連帶把細胞株/時間點這種**真實生物差異**也一起移除。
+    量的是 **condition-associated structure**,不是「純生物訊號」。
+    因為 plate 完全巢狀於 cell_line x timepoint,這份結構同時包含
+    (a) 真實的細胞株/時間點生物差異 與 (b) 該條件所屬 plate 的技術效應,
+    兩者在本設計中 **無法識別(unidentifiable)**。
+    所以此指標下降只能說「條件關聯結構被移除了」,
+    不能反推「已證明刪掉的是真生物」——只能說生物成分有受損風險。
     """
     from sklearn.neighbors import NearestNeighbors
     from collections import Counter
