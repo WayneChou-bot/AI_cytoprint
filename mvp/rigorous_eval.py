@@ -4,7 +4,9 @@
 Rigorous batch-correction evaluation engine (the "next rung").
 
 Implements the reviewer's asks:
-  (1) SAME-SAMPLE comparison of representations in a common reduced space
+  (1) SAME-SAMPLE comparison of representations at a common REDUCED DIMENSIONALITY
+      (each representation gets its own PCA to 50 components — the dimensionality is shared,
+       the coordinate axes are not)
       (raw / sphered / sphered+Harmony), so differences are the method, not the inputs.
   (2) DUAL metrics — you must measure BOTH:
         · biology retention  = MoA-retrieval mAP  (higher = better; keeps signal)
@@ -38,7 +40,7 @@ Caveat (stated, not hidden): correction transforms are fit ONCE on the full data
 bootstrap resamples the EVALUATION over plates (given fixed embeddings). Re-fitting the
 correction inside every bootstrap draw is the gold standard but far slower.
 """
-import json, warnings
+import json, re, warnings
 from pathlib import Path
 import numpy as np, pandas as pd
 from sklearn.preprocessing import StandardScaler
@@ -116,7 +118,8 @@ def plate_mixing(emb, plate, comp, k=KMIX, subs=SUBS, rng=RNG):
     return float(same/exp) if exp and exp > 0 else np.nan
 
 def build_reps(Xw, dmso, plate):
-    """common 50-dim space for fair comparison."""
+    """Each representation reduced to the SAME NUMBER of dimensions (50 PCs) for a fair
+    comparison. Note these are three separate PCAs: the dimensionality is common, the axes are not."""
     Zt = StandardScaler().fit_transform(Xw)
     raw = PCA(NPC, random_state=0).fit_transform(Zt)
     # ZCA sphering on DMSO controls
@@ -202,10 +205,24 @@ def evaluate(reps, comp, moa, plate):
     return out
 
 def main():
-    # read the SANITIZED matrix produced by pipeline.py (P0-clean; never the old contaminated file)
+    # read the SANITIZED matrix produced by pipeline.py (P0-clean; never the old contaminated file).
+    # The version to use comes from data/manifest.json, which pipeline.py writes alongside it — NOT
+    # from sorting filenames, which would rank "v10" before "v2" and silently pick the wrong matrix.
     data = Path(__file__).resolve().parent.parent/"data"
-    clean = sorted(data.glob("lincs_selected_v*-sanitized.parquet"))
-    src = clean[-1] if clean else data/"lincs_selected.parquet"
+    src = None
+    man = data/"manifest.json"
+    if man.exists():
+        ver = json.load(open(man, encoding="utf-8")).get("derived_version")
+        if ver:
+            cand = data/f"lincs_selected_{ver}.parquet"
+            if cand.exists(): src = cand
+            else: print(f"  ! manifest names {cand.name} but it is missing — falling back", flush=True)
+    if src is None:                                     # fallback: natural sort, not lexicographic
+        def vkey(pth):
+            m = re.search(r"_v(\d+)-sanitized", pth.name)
+            return int(m.group(1)) if m else -1
+        clean = sorted(data.glob("lincs_selected_v*-sanitized.parquet"), key=vkey)
+        src = clean[-1] if clean else data/"lincs_selected.parquet"
     print("reading:", src.name)
     df = pd.read_parquet(src)
     HELPER = {"moa1", "plate", "drug"}

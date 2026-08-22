@@ -50,7 +50,10 @@ DATA = Path("data"); WEB = Path("web"); DATA.mkdir(exist_ok=True); WEB.mkdir(exi
 
 # ─────────────────────────── data loading (cached) ───────────────────────────
 def load_wells():
-    cache = DATA/"lincs_norm_10maps.parquet"
+    # the cache key carries everything that determines its CONTENT — the batch, the number of
+    # plate maps, and the pinned upstream data commit — so changing any of them produces a new
+    # file instead of silently reusing a cache built under different settings
+    cache = DATA/f"lincs_norm_{BATCH}_{N_MAPS}maps_{COMMIT[:7]}.parquet"
     if cache.exists():
         return pd.read_parquet(cache)
     import concurrent.futures as cf
@@ -141,8 +144,13 @@ def retrieval_metrics(Z, moa):
                 random=round(rnd, 4), fold=round((t1/len(elig))/rnd, 1), n_eval=len(elig))
 
 def wilson(k, n, z=1.96):
-    """Wilson score interval for a binomial rate — behaves sensibly at 0/n and n/n,
-    which a normal-approximation interval does not, and most classes here are tiny."""
+    """DESCRIPTIVE binomial Wilson score interval for a per-class rate.
+
+    Chosen because it behaves sensibly at 0/n and n/n, which a normal approximation does not,
+    and most classes here are tiny. It is a readability aid — "5/5 still carries wide
+    uncertainty" — NOT an inferential CI for the retrieval pipeline: the queries inside one
+    MoA class share the same neighbour pool and the same embedding, so the per-query hits are
+    not independent Bernoulli trials. Read it as descriptive, not as a generalisation bound."""
     if n == 0: return [None, None]
     p = k/n; d = 1 + z*z/n
     c = (p + z*z/(2*n))/d

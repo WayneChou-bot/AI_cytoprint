@@ -39,8 +39,9 @@ T = {
    xlab="batch mixing (→1 is better)", ylab="biology signal — MoA mAP (higher is better)",
    th=["", "Method", "Biology mAP (95% CI)", "Batch mixing (95% CI)"],
    note="<b>Honest reading (recomputed after fixing an extreme-value contamination bug):</b> the three methods have "
-        "<b>almost identical biology signal</b> (mAP raw {r} / sphered {s} / +Harmony {h}; every pairwise paired-block Δ "
-        "has a 95% CI that <b>crosses zero</b>, i.e. no significant difference). On the batch axis, "
+        "<b>almost identical biology signal</b> (mAP raw {r} / sphered {s} / +Harmony {h}; both Δ values computed here — "
+        "sphered−raw and Harmony−raw — have a 95% CI that <b>crosses zero</b>. sphered−Harmony is not computed, so this "
+        "is not a claim about every pairwise comparison). On the batch axis, "
         "<b>Harmony clearly improves mixing</b> ({br}× → {bh}×, toward 1) with <b>no biology loss detectable at this "
         "sample size</b> — which is not the same as no cost; sphering alone is slightly worse.<br><br>"
         "Lesson: <b>de-biasing must be judged on both axes at once — biology retention and batch removal — using a "

@@ -85,8 +85,10 @@ The gap between them comes from extreme heterogeneity. **102 of 113 classes sit 
 handful are near-perfect, and **59 % of all Top-1 hits come from just 5 classes** (7 of those hits from
 classes with n < 5 — see the caveat below). Opening up the distribution is more useful than quoting its mean:
 
-Counts are given as `hits/queries`, not just a rate, with a Wilson 95 % interval — most of these classes
-are small, and a percentage alone hides that.
+Counts are given as `hits/queries`, not just a rate, with a **descriptive** binomial Wilson 95 % interval —
+most of these classes are small, and a percentage alone hides that. It is called descriptive because queries
+within one class share the same neighbour pool and the same embedding, so the hits are not independent
+Bernoulli trials: the interval flags uncertainty, it is not an inferential CI for the retrieval pipeline.
 
 | MoA class | n | Top-1 | Wilson 95 % CI | Top-5 | mAP |
 |---|---|---|---|---|---|
@@ -111,6 +113,13 @@ therefore changes how the cell *looks*: enlarged nuclei, arrested division, a re
 is exactly what a morphological fingerprint encodes. The classes at 0 % are overwhelmingly GPCR, ion-channel
 and signalling modulators.
 
+These failures **cannot be attributed to the algorithm alone** — but method-side causes cannot be excluded
+either: the representation may be too weak, the similarity metric unsuitable, the per-compound consensus may
+average away a subpopulation response, a single MoA class may contain several distinct phenotypes, and MoA
+annotation quality matters. The precise statement is that **assay, cell condition and representation jointly
+set the ceiling on what is retrievable**. (The mechanistic coherence described above applies to the
+representative zero-hit classes named here, not to all 102 of them.)
+
 #### Does retrieval failure actually track phenotype strength?
 
 That question deserves a measurement rather than an assertion, so the pipeline computes one:
@@ -121,8 +130,9 @@ That question deserves a measurement rather than an assertion, so the pipeline c
 | missed | 343 | **21.6 %** |
 
 Across the 19 classes with n ≥ 5, class Top-1 correlates with candidate-active rate at
-**Spearman ρ = 0.826 (p = 1.4 × 10⁻⁵)** and with median activity at ρ = 0.747 (p = 2.4 × 10⁻⁴); over all
-113 classes, ρ = 0.408 (p = 7.2 × 10⁻⁶).
+**Spearman ρ = 0.826** (p = 1.4 × 10⁻⁵) and with median activity at ρ = 0.747 (p = 2.4 × 10⁻⁴); over all
+113 classes, ρ = 0.408 (p = 7.2 × 10⁻⁶). Treat these as **exploratory**: only 19 classes, and both the
+activity threshold and the n ≥ 5 filter are part of this analysis design.
 
 **What this does not establish.** The activity score is derived from the *same morphology features* as the
 retrieval, so this is descriptive support, **not independent biological validation** — a correlation between
@@ -162,7 +172,8 @@ averages, and asserts that the query-weighted one reproduces the headline Top-1.
 ### Batch correction: measured, not assumed
 
 Correction is evaluated on **two axes simultaneously** (you can trivially win one by wrecking the
-other), in a common 50-D space, with a **plate-block bootstrap** and **paired** Δ confidence intervals.
+other), at a common dimensionality of 50 PCs — each representation gets its own PCA, so the axes are not shared,
+only the dimensionality — with a **plate-block bootstrap** and **paired** Δ confidence intervals.
 
 **Exploratory** JUMP-Target result (`mvp/jump_mvp_results.json`, 16 plates, 4,102 treated wells).
 

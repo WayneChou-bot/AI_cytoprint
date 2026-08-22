@@ -3,8 +3,22 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>MorphoProfile — 細胞影像形態分析 · 真實資料互動展示</title>
-<meta name="description" content="用 JUMP / Cell Painting 開源細胞影像形態指紋做 MoA 相似度檢索、批次去偏與命中判定。真實資料驅動的互動作品。"/>
+<title>MorphoProfile — how averages, estimators and study designs distort conclusions</title>
+<meta name="description" content="A case study in how averaging, estimator choice and confounded experimental design distort scientific conclusions — worked through on real open Cell Painting data (LINCS cpg0004, JUMP CPJUMP1) with reproducible code and tests."/>
+<link rel="canonical" href="https://ai-cytoprint.vercel.app/"/>
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="https://ai-cytoprint.vercel.app/"/>
+<meta property="og:site_name" content="MorphoProfile"/>
+<meta property="og:title" content="MorphoProfile — how averages, estimators and study designs distort conclusions"/>
+<meta property="og:description" content="Same data, three misleading summaries: Top-1 9.0% query-weighted vs 6.1% class-balanced; a bootstrap mean that reverses the observed effect; a batch effect that is really a confounded biological condition. Real open Cell Painting data, reproducible."/>
+<meta property="og:image" content="https://ai-cytoprint.vercel.app/og.png"/>
+<meta property="og:image:width" content="1200"/>
+<meta property="og:image:height" content="630"/>
+<meta property="og:image:alt" content="MorphoProfile — three cards showing 9.0% vs 6.1% Top-1, a bootstrap mean versus the observed effect, and a pooled versus stratified batch effect."/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="MorphoProfile — how averages, estimators and study designs distort conclusions"/>
+<meta name="twitter:description" content="Same data, three misleading summaries — worked through on real open Cell Painting data, with reproducible code and tests."/>
+<meta name="twitter:image" content="https://ai-cytoprint.vercel.app/og.png"/>
 <style>
   :root{
     --bg:#06060c;--panel:#0d0d16;--panel2:#0a0a12;--line:rgba(150,160,210,.13);
@@ -90,7 +104,7 @@
   .plot{width:100%;height:auto;display:block}
   .kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:11.5px}
   .kv:last-child{border-bottom:0}.kv .k{color:var(--dim)}.kv .v{font-variant-numeric:tabular-nums}
-  ul.clean{list-style:none;font-size:12px;color:var(--dim);line-height:1.9}
+  ul.clean{list-style:none;font-size:12.5px;color:var(--dim);line-height:1.95}
   ul.clean li{padding-left:16px;position:relative}
   ul.clean li:before{content:"▸";position:absolute;left:0;color:var(--accent)}
   ul.clean li b{color:var(--ink);font-weight:600}
@@ -114,6 +128,11 @@
   .grid2,.grid3,.grid4,.pipe,.stats,.imgwrap{grid-template-columns:repeat(var(--cols,2),minmax(0,1fr))}
   .grid3{--cols:3} .grid4{--cols:4} .grid2{--cols:2} .stats{--cols:6} .pipe{--cols:5} .imgwrap{--cols:2}
   .card,.stat,.pstep{min-width:0}
+  html{scroll-behavior:smooth}
+  a.thesis{display:block;text-decoration:none;border:0;color:inherit;transition:border-color .15s,transform .15s}
+  a.thesis:hover{transform:translateY(-2px)}
+  a.thesis:hover .card{border-color:rgba(255,107,208,.55)}
+  a.thesis .go{font-size:9px;color:var(--accent);letter-spacing:.1em;margin-top:9px}
   .tw{overflow-x:auto;max-width:100%}
   table{max-width:100%}
   .card>div,.card>table,.card>svg{max-width:100%}
@@ -138,10 +157,12 @@
     <div class="ey">image-based morphological profiling</div>
     <h1>MorphoProfile<z> · 細胞影像形態分析</z><e> · Image-Based Morphological Profiling</e></h1>
     <div class="sub">
-      <z>用開源 <b>Cell Painting</b> 細胞影像的「形態指紋」做作用機制（MoA）相似度檢索、候選活性篩選與去偏方法比較。
+      <z><b>一個關於「平均方式、估計量與實驗設計如何扭曲科學結論」的案例研究</b>，用真實的開源 <b>Cell Painting</b> 資料一路走完。
+      載體是細胞影像「形態指紋」的作用機制（MoA）相似度檢索、候選活性篩選與去偏方法比較。
       本頁的影像分割、UMAP、檢索、指紋與統計<b>皆由真實資料預先計算（離線 Python）</b>，瀏覽器只讀取結果繪圖；附完整資料來源與一鍵可重現程式。</z>
-      <e>Morphological fingerprints from open <b>Cell Painting</b> images, used for mechanism-of-action (MoA)
-      similarity retrieval, candidate-activity screening and a batch-correction comparison.
+      <e><b>A case study in how averages, estimators and experimental designs distort scientific conclusions</b>, worked
+      through end to end on real open <b>Cell Painting</b> data. The vehicle is morphological fingerprinting for
+      mechanism-of-action (MoA) similarity retrieval, candidate-activity screening and a batch-correction comparison.
       Segmentation, UMAP, retrieval, fingerprints and statistics are <b>all pre-computed offline in Python from real data</b>;
       the browser only renders the results. Full data sources and one-command reproducibility included.</e></div>
   </div>
@@ -354,7 +375,7 @@
   </div>
 </div>
 
-<div class="sec-title"><z>05b · 方法比較：去偏是否有效（真實 · 含 95% CI）</z><e>05b · Method comparison: does de-biasing help? (real, with 95% CI)</e></div>
+<div class="sec-title" id="sec-05b"><z>05b · 方法比較：去偏是否有效（真實 · 含 95% CI）</z><e>05b · Method comparison: does de-biasing help? (real, with 95% CI)</e></div>
 <div class="card" style="margin-top:8px"><div style="font-size:11px;color:var(--dim);line-height:1.75"><z><b>估計量提醒：</b>本節的 mAP 走的是「<b>先標準化 well → 再做 compound consensus</b>」的管線；
   05d 逐 MoA 那節走的是「<b>先做 consensus → 再標準化</b>」。兩者都合理、各自內部一致，但<b>是不同的表徵，數值不可互相比較</b>。</z><e><b>Estimator note:</b> the mAP in this section comes from a
   <b>standardise-wells-then-build-consensus</b> pipeline; the per-MoA section 05d builds the <b>consensus first and standardises after</b>.
@@ -371,7 +392,7 @@
   </div>
 </div>
 
-<div class="sec-title"><z>05c · JUMP-Target 分層驗證：當實驗設計本身是混雜的</z><e>05c · JUMP-Target stratified validation: when the design itself is confounded</e></div>
+<div class="sec-title" id="sec-05c"><z>05c · JUMP-Target 分層驗證：當實驗設計本身是混雜的</z><e>05c · JUMP-Target stratified validation: when the design itself is confounded</e></div>
 <div class="card">
   <h2><z>為什麼不能直接對 plate 做批次校正</z><e>Why you cannot just batch-correct by plate</e> <span class="hint"><z>探索性 · CPJUMP1 真實資料</z><e>exploratory · real CPJUMP1 data</e></span></h2>
   <div id="jump-intro" style="font-size:12px;color:var(--dim);line-height:1.9"></div>
@@ -391,7 +412,7 @@
   <div class="disc" style="margin-top:10px"><b><z>關鍵結論：</z><e>Bottom line: </e></b><span id="jump-concl"></span></div>
 </div>
 
-<div class="sec-title"><z>05d · 逐 MoA 拆解：這個方法在哪裡有效、在哪裡無效</z><e>05d · Per-MoA breakdown: where this method works and where it does not</e></div>
+<div class="sec-title" id="sec-05d"><z>05d · 逐 MoA 拆解：這個方法在哪裡有效、在哪裡無效</z><e>05d · Per-MoA breakdown: where this method works and where it does not</e></div>
 <div class="grid4" id="moa-kpi"></div>
 <div class="card">
   <div id="moa-lede" style="font-size:12px;color:var(--dim);line-height:1.9"></div>
@@ -409,7 +430,7 @@
     <div class="umap-legend" id="moa-legend"></div>
   </div>
   <div class="card">
-    <h2><z>完整表格</z><e>Full table</e> <span class="hint"><z>隨機基準每類 &lt; 2.5%</z><e>random baseline &lt; 2.5% for every class</e></span></h2>
+    <h2><z>完整表格</z><e>Full table</e> <span class="hint"><z>隨機基準每類 &lt; 2.5% · Wilson 區間為描述性</z><e>random baseline &lt; 2.5% per class · Wilson intervals are descriptive</e></span></h2>
     <div class="tw" style="max-height:470px;overflow:auto"><table id="moatbl"></table></div>
   </div>
 </div>
@@ -449,7 +470,7 @@
 <div class="card"><ul class="clean">
   <li><z><b>避開紅海：</b>不做「分子結構 → 性質預測」那種過度 benchmark 的題目，改做<b>表徵學習＋檢索</b>——輸入是細胞影像，不是分子式。</z><e><b>Avoid the crowded space:</b> not another "molecular structure → property prediction" benchmark. This is <b>representation learning + retrieval</b>, and the input is a cell image, not a formula.</e></li>
   <li><z><b>切入點：</b>形態指紋的 <b>MoA 檢索 / 批次去偏 / 以圖找相似藥</b>；solo 玩家少、CV 技能可直接用、資料真實龐大。</z><e><b>The angle:</b> <b>MoA retrieval, batch de-biasing and image-based drug similarity</b> on morphological fingerprints — few solo developers work here, CV skills transfer directly, and the data is real and large.</e></li>
-  <li><z><b>路線圖：</b>① 影像→自建指紋（已完成）→ ② CellProfiler profiles＋最近鄰檢索（已完成）→ ③ 雙指標＋block CI 的去偏驗證（已完成，含真實 JUMP-Target）→ ④ 逐 MoA 拆解與適用範圍界定（已完成）→ ⑤ 自監督影像 embedding → ⑤ 擴到 JUMP cpg0016 全量、建 FAISS 檢索與 LLM 機制解說。</z><e><b>Roadmap:</b> ① image → own fingerprint (done) → ② CellProfiler profiles + nearest-neighbour retrieval (done) → ③ dual-metric, block-CI de-biasing validation (done, including real JUMP-Target) → ④ per-MoA breakdown and scope definition (done) → ⑤ self-supervised image embeddings → ⑤ scale to full JUMP cpg0016 with FAISS retrieval and an LLM explanation layer.</e></li>
+  <li><z><b>路線圖：</b>① 影像→自建指紋（已完成）→ ② CellProfiler profiles＋最近鄰檢索（已完成）→ ③ 雙指標＋block CI 的去偏驗證（已完成，含真實 JUMP-Target）→ ④ 逐 MoA 拆解與適用範圍界定（已完成）→ ⑤ 自監督影像 embedding → ⑥ 擴到 JUMP cpg0016 全量、建 FAISS 檢索與 LLM 機制解說。</z><e><b>Roadmap:</b> ① image → own fingerprint (done) → ② CellProfiler profiles + nearest-neighbour retrieval (done) → ③ dual-metric, block-CI de-biasing validation (done, including real JUMP-Target) → ④ per-MoA breakdown and scope definition (done) → ⑤ self-supervised image embeddings → ⑥ scale to full JUMP cpg0016 with FAISS retrieval and an LLM explanation layer.</e></li>
   <li><z><b>可展示成果：</b>互動檢索網頁（本頁）、自建影像管線重現已知機制、去偏雙指標權衡圖（含 CI）、逐 MoA 適用範圍拆解、案例研究（紫杉醇 → 微管群）。</z><e><b>Demonstrable output:</b> this interactive app, an in-house image pipeline that recovers known biology, a dual-metric de-biasing trade-off figure with CIs, a per-MoA breakdown that defines where the method applies, and case studies (paclitaxel → tubulin cluster).</e></li>
 </ul></div>
 
@@ -1543,17 +1564,27 @@ RENDER.push(drawMoaBars);
 
 function renderMoaTable(){
   const el=$('#moatbl'); if(!el||!PM.rows.length) return;
-  let h=`<thead><tr><th>MoA</th><th>n</th><th>Top-1</th><th>${L('Wilson 95% CI','Wilson 95% CI')}</th><th>Top-5</th><th>mAP</th></tr></thead><tbody>`;
-  PM.rows.forEach(r=>{
-    const col=r.top1>0 ? 'var(--ink)' : 'var(--dim)';
-    const rel=r.n>=(PM.summary.reliable_min_n||5);
-    h+=`<tr><td style="color:${col}">${r.moa}${rel?'':' <span class="moa" style="font-size:8px">small n</span>'}</td>`
-      +`<td style="color:var(--dim)">${r.n}</td>`
-      +`<td style="font-variant-numeric:tabular-nums;color:${col}">${r.hits1}/${r.queries} <span style="color:var(--dim)">${pct(r.top1)}</span></td>`
-      +`<td style="font-variant-numeric:tabular-nums;color:var(--dim)">${pct(r.top1_ci[0])}–${pct(r.top1_ci[1])}</td>`
-      +`<td style="font-variant-numeric:tabular-nums;color:var(--dim)">${r.hits5}/${r.queries}</td>`
-      +`<td style="font-variant-numeric:tabular-nums;color:var(--dim)">${r.mAP.toFixed(3)}</td></tr>`;
-  });
+  const RN=PM.summary.reliable_min_n||5;
+  let h=`<thead><tr><th>MoA</th><th>n</th><th>Top-1</th><th title="${L('描述性二項區間;同類查詢共用鄰居池,非獨立試驗','descriptive binomial interval; queries in a class share a neighbour pool and are not independent trials')}">${L('Wilson 95% CI（描述性）','Wilson 95% CI (descriptive)')}</th><th>Top-5</th><th>mAP</th></tr></thead><tbody>`;
+  const grp=(rows,head)=>{
+    if(!rows.length) return '';
+    let s=`<tr><td colspan="6" style="padding-top:11px;border-bottom:1px solid var(--line)">
+      <span style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)">${head}</span></td></tr>`;
+    rows.forEach(r=>{
+      const col=r.top1>0 ? 'var(--ink)' : 'var(--dim)';
+      s+=`<tr><td style="color:${col}">${r.moa}</td>`
+        +`<td style="color:var(--dim)">${r.n}</td>`
+        +`<td style="font-variant-numeric:tabular-nums;color:${col}">${r.hits1}/${r.queries} <span style="color:var(--dim)">${pct(r.top1)}</span></td>`
+        +`<td style="font-variant-numeric:tabular-nums;color:var(--dim)">${pct(r.top1_ci[0])}–${pct(r.top1_ci[1])}</td>`
+        +`<td style="font-variant-numeric:tabular-nums;color:var(--dim)">${r.hits5}/${r.queries}</td>`
+        +`<td style="font-variant-numeric:tabular-nums;color:var(--dim)">${r.mAP.toFixed(3)}</td></tr>`;
+    });
+    return s;
+  };
+  const rel=PM.rows.filter(r=>r.n>=RN), small=PM.rows.filter(r=>r.n<RN);
+  // reliable classes first: a 2/2 = 100% at the top of an ungrouped table reads as a headline it is not
+  h+=grp(rel,   L(`可靠類別 · n ≥ ${RN}（${rel.length} 類）`,   `Reliable classes · n ≥ ${RN} (${rel.length})`));
+  h+=grp(small, L(`小樣本類別 · n &lt; ${RN}（${small.length} 類，比率極不穩定）`, `Small-n classes · n &lt; ${RN} (${small.length}, rates highly unstable)`));
   el.innerHTML=h+'</tbody>';
 }
 RENDER.push(renderMoaTable);
@@ -1568,17 +1599,27 @@ function renderMoaNotes(){
    [`<b>在本資料集中檢索成功率高的少數 MoA，機制上是一致的。</b>${win.map(n=>`<u>${n.replace(' inhibitor','').replace(' agonist','')}</u> ${by(n).hits1}/${by(n).queries}`).join('、')}
      ——全都是直接干擾細胞週期、染色質、蛋白質降解或生長訊號的化合物。它們讓細胞<b>看起來就不一樣</b>：核變大、分裂受阻、細胞骨架重組。
      形態指紋抓的正是這些。proteasome inhibitor 的 Top-1 只有 ${by('proteasome inhibitor').hits1}/${by('proteasome inhibitor').queries}，但 Top-5 是 ${by('proteasome inhibitor').hits5}/${by('proteasome inhibitor').queries}——同類確實聚在一起，只是最近的那一個不一定同類。
-     注意這些分子仍是<b>小樣本</b>：即使 5/5，Wilson 95% CI 也只到 ${pct(by('Aurora kinase inhibitor').top1_ci[0])} 起跳。
+     注意這些分子仍是<b>小樣本</b>：即使 5/5，<b>描述性</b>二項 Wilson 95% 區間也只從 ${pct(by('Aurora kinase inhibitor').top1_ci[0])} 起跳。
+     （稱「描述性」是因為同一類別內的查詢共用同一個鄰居池與同一組 embedding，命中並非獨立的 Bernoulli 試驗；
+     這個區間是用來提醒不確定性，<b>不是</b>整條檢索管線的推論型信賴區間。）
      正確的說法是「<b>在本資料集內呈現高檢索成功率</b>」，而不是「已接近解決」。`,
     `<b>The few MoAs with high retrieval success in this dataset share a mechanism.</b> ${win.map(n=>`<u>${n.replace(' inhibitor','').replace(' agonist','')}</u> ${by(n).hits1}/${by(n).queries}`).join(', ')}
      — every one of them directly perturbs the cell cycle, chromatin, protein degradation or growth signalling. They make cells <b>look different</b>: enlarged nuclei, arrested division, a reorganised cytoskeleton. That is precisely what a morphological fingerprint encodes. Proteasome inhibitors reach only ${by('proteasome inhibitor').hits1}/${by('proteasome inhibitor').queries} Top-1 but ${by('proteasome inhibitor').hits5}/${by('proteasome inhibitor').queries} Top-5 — the class does cluster, the single nearest neighbour just is not always a class member.
-     These numerators are <b>small</b>: even at 5/5 the Wilson 95% interval starts at ${pct(by('Aurora kinase inhibitor').top1_ci[0])}. The defensible phrasing is "<b>high retrieval success within this dataset</b>", not "essentially solved".`],
-   [`<b>無效的一群，也是機制上一致的。</b>${lose.map(n=>`<u>${n.replace(' receptor','').replace(' inhibitor','').replace(' antagonist',' antag.')}</u>`).join('、')}
-     全部 0%。這些是 GPCR／離子通道／訊號調節劑，在 <b>A549 肺上皮細胞</b>上多半<b>沒有產生可偵測的形態表型</b>
-     ——可能該受體不表現、可能效應不改變細胞外觀、也可能是劑量或時間點不對。<b>沒有可偵測的表型，就沒有形態可以指紋化</b>；
-     這是本 assay 在此條件下的邊界，不是演算法的失敗（能說多少、不能說多少，見上方那張圖旁的說明）。`,
-    `<b>The classes that fail are equally coherent.</b> ${lose.map(n=>`<u>${n.replace(' receptor','').replace(' inhibitor','').replace(' antagonist',' antag.')}</u>`).join(', ')} — all at 0%.
-     These are GPCR, ion-channel and signalling modulators that mostly show <b>no detectable morphological phenotype</b> in <b>A549 lung epithelial cells</b> — the receptor may not be expressed, its effect may not change how the cell looks, or the dose and timepoint may be wrong. <b>No detectable phenotype means no morphology to fingerprint.</b> That is a boundary of this assay under these conditions, not a failure of the algorithm (see the figure above for exactly how far that claim goes).`],
+     These numerators are <b>small</b>: even at 5/5 the <b>descriptive</b> binomial Wilson 95% interval starts at ${pct(by('Aurora kinase inhibitor').top1_ci[0])}.
+     (Descriptive because queries within a class share the same neighbour pool and the same embedding, so the hits are not independent Bernoulli trials — the interval flags uncertainty, it is <b>not</b> an inferential CI for the retrieval pipeline.)
+     The defensible phrasing is "<b>high retrieval success within this dataset</b>", not "essentially solved".`],
+   [`<b>下列這幾個代表性的零命中類別，機制上也是一致的</b>（<b>不是</b>說全部 ${s.n_classes_zero_top1} 個零命中類別都同屬一種機制）：
+     ${lose.map(n=>`<u>${n.replace(' receptor','').replace(' inhibitor','').replace(' antagonist',' antag.')}</u>`).join('、')}
+     皆為 0%。這些是 GPCR／離子通道／訊號調節劑，在 <b>A549 肺上皮細胞</b>上多半<b>沒有產生可偵測的形態表型</b>
+     ——可能該受體不表現、可能效應不改變細胞外觀、也可能是劑量或時間點不對。<br>
+     這些失敗<b>不能單純歸因於演算法</b>，但也<b>不能完全排除</b>方法端的因素：表徵可能不夠好、相似度度量可能不適合、
+     compound consensus 可能壓掉亞群反應、類別本身可能含多種表型、MoA 標註品質也會影響。
+     較精確的說法是：<b>assay、細胞條件與表徵共同決定了可檢索的上限</b>。`,
+    `<b>The representative zero-hit classes listed here are also mechanistically coherent</b> — this is <b>not</b> a claim that all ${s.n_classes_zero_top1} zero-hit classes share one mechanism:
+     ${lose.map(n=>`<u>${n.replace(' receptor','').replace(' inhibitor','').replace(' antagonist',' antag.')}</u>`).join(', ')}, all at 0%.
+     These are GPCR, ion-channel and signalling modulators that mostly show <b>no detectable morphological phenotype</b> in <b>A549 lung epithelial cells</b> — the receptor may not be expressed, its effect may not change how the cell looks, or the dose and timepoint may be wrong.<br>
+     These failures <b>cannot be attributed to the algorithm alone</b>, but method-side causes <b>cannot be excluded</b> either: the representation may be too weak, the similarity metric unsuitable, the compound consensus may average away a subpopulation response, a class may contain several distinct phenotypes, and MoA annotation quality matters too.
+     The precise statement is that <b>assay, cell condition and representation jointly set the ceiling on what is retrievable</b>.`],
    [`<b>但「受體配體都不行」是錯的結論。</b><u>glucocorticoid receptor agonist</u> 也是受體配體，Top-1 卻有 ${pct(by('glucocorticoid receptor agonist').top1)}（n=${by('glucocorticoid receptor agonist').n}）。
      差別在於 A549 確實表現 GR，而且它的下游是強烈的轉錄重編程。正確的判準不是「是不是受體藥」，而是<b>這個細胞株對它有沒有反應</b>。`,
     `<b>But "receptor ligands don't work" would be the wrong lesson.</b> <u>Glucocorticoid receptor agonists</u> are receptor ligands too, and they reach ${pct(by('glucocorticoid receptor agonist').top1)} Top-1 (n=${by('glucocorticoid receptor agonist').n}).
@@ -1667,37 +1708,31 @@ function renderActNotes(){
   const rm=(AL.reliable_classes||{}).vs_median_activity||{};
   const ac=(AL.all_classes||{}).vs_candidate_active_rate||{};
   const C=AL.correct_retrieved, M=AL.mis_retrieved;
-  el.innerHTML = L(
-   `<b>回答的：檢索成敗確實隨表型強度變化。</b>被正確檢索的 ${C.n} 個化合物中，
-    <b>${(100*C.candidate_active_rate).toFixed(1)}%</b> 通過候選活性門檻；未被正確檢索的 ${M.n} 個中只有
-    <b>${(100*M.candidate_active_rate).toFixed(1)}%</b>。在 n ≥ ${s.reliable_min_n} 的 ${rc.n_classes} 個可靠類別上，
-    類別 Top-1 與候選活性比例的 <b>Spearman ρ = ${rc.spearman_rho}（p = ${rc.p}）</b>；
-    與活性中位數則是 ρ = ${rm.spearman_rho}（p = ${rm.p}）。全部 ${ac.n_classes} 類一起看是 ρ = ${ac.spearman_rho}。<br><br>
-    <b>不回答的：這不能證明那些化合物「沒有生物效應」。</b>候選活性本身是<b>從同一批形態特徵推導出來的</b>，
-    所以這是<b>描述性的支持，不是獨立的生物驗證</b>——兩個都由形態決定的量相關，無法反推化合物在生物上是惰性的。
-    失敗還可能來自：Cell Painting 的五個通道沒有捕捉到該效應、劑量或時間點不合適、
-    反應只發生在少數細胞或呈非線性、以及活性門檻本身只是一個估計規則。<br><br>
-    因此本頁的措辭是：<b>多數失敗類別在本 assay、此劑量與時間點、此表徵與活性判準下，未呈現足以支撐可靠檢索的可偵測形態表型</b>
-    ——而不是「多數化合物沒有表型」。<br><br>
-    <b>而且活性不是充分條件。</b>圖右下角那些活性不低卻 Top-1 = 0 的類別（cytochrome P450 有 40% 的化合物通過門檻、phosphodiesterase 有 27%，兩者 Top-1 都是 0）說明：
-    有表型不代表<b>該類別內部的表型彼此相似</b>。檢索要成功，需要的是「有訊號」<b>且</b>「同類共享同一種訊號」。`,
-   `<b>What it settles: retrieval success does track phenotype strength.</b> Of the ${C.n} correctly retrieved compounds,
-    <b>${(100*C.candidate_active_rate).toFixed(1)}%</b> pass the candidate-activity threshold; of the ${M.n} that were missed, only
-    <b>${(100*M.candidate_active_rate).toFixed(1)}%</b> do. Across the ${rc.n_classes} reliable classes with n ≥ ${s.reliable_min_n}, class Top-1
-    correlates with candidate-active rate at <b>Spearman ρ = ${rc.spearman_rho} (p = ${rc.p})</b>, and with median activity at
-    ρ = ${rm.spearman_rho} (p = ${rm.p}). Over all ${ac.n_classes} classes it is ρ = ${ac.spearman_rho}.<br><br>
-    <b>What it does not settle: this is no proof those compounds have no biological effect.</b> The activity score is
-    <b>derived from the same morphology features</b> as the retrieval, so this is <b>descriptive support, not independent
-    biological validation</b> — a correlation between two quantities both computed from morphology cannot establish that a
-    compound is biologically inert. Failure may also come from the five Cell Painting channels not capturing the effect, an
-    unsuitable dose or timepoint, a response confined to a few cells or non-linear in nature, or the activity threshold itself
-    being just an estimation rule.<br><br>
-    So the wording used on this page is: <b>most failing classes show no detectable morphological phenotype sufficient to
-    support reliable retrieval, under this assay, dose, timepoint, representation and activity criterion</b> — not "most
-    compounds have no phenotype".<br><br>
-    <b>And activity is not sufficient either.</b> The classes sitting low but well to the right — cytochrome P450 (40% of its compounds pass the threshold) and
-    phosphodiesterase (27%), both at 0% Top-1 — are active yet never retrieved, which shows that having a phenotype does not mean the class <b>shares</b> one. Retrieval needs
-    signal <b>and</b> within-class consistency of that signal.`);
+  const yes=[
+   [`被正確檢索的 ${C.n} 個化合物有 <b>${(100*C.candidate_active_rate).toFixed(1)}%</b> 通過候選活性門檻；未被檢索的 ${M.n} 個只有 <b>${(100*M.candidate_active_rate).toFixed(1)}%</b>。`,
+    `<b>${(100*C.candidate_active_rate).toFixed(1)}%</b> of the ${C.n} correctly retrieved compounds pass the candidate-activity threshold, against only <b>${(100*M.candidate_active_rate).toFixed(1)}%</b> of the ${M.n} that were missed.`],
+   [`n ≥ ${s.reliable_min_n} 的 ${rc.n_classes} 個類別上，Top-1 與候選活性比例 <b>ρ = ${rc.spearman_rho}</b>（與活性中位數 ρ = ${rm.spearman_rho}；全部 ${ac.n_classes} 類為 ρ = ${ac.spearman_rho}）。`,
+    `Over the ${rc.n_classes} classes with n ≥ ${s.reliable_min_n}, Top-1 tracks candidate-active rate at <b>ρ = ${rc.spearman_rho}</b> (median activity ρ = ${rm.spearman_rho}; all ${ac.n_classes} classes ρ = ${ac.spearman_rho}).`],
+   [`<b>但活性不是充分條件</b>：cytochrome P450（40% 通過門檻）與 phosphodiesterase（27%）的 Top-1 都是 0——有訊號還不夠，同類還得<b>共享</b>同一種訊號。`,
+    `<b>But activity is not sufficient</b>: cytochrome P450 (40% active) and phosphodiesterase (27%) both retrieve at 0% — signal alone is not enough, a class must also <b>share</b> that signal.`]];
+  const no=[
+   [`<b>不能證明那些化合物沒有生物效應。</b>候選活性是<b>從同一批形態特徵推導</b>的，因此這是描述性支持，<b>不是獨立的生物驗證</b>。`,
+    `<b>It cannot show those compounds have no biological effect.</b> The activity score is <b>derived from the same morphology features</b>, so this is descriptive support, <b>not independent biological validation</b>.`],
+   [`檢索失敗還可能來自：五個通道沒捕捉到該效應、劑量或時間點不合適、反應非線性或只在少數細胞、活性門檻本身只是估計規則。`,
+    `Retrieval can also fail because the five channels miss the effect, the dose or timepoint is unsuitable, the response is non-linear or confined to a few cells, or the threshold is merely an estimation rule.`],
+   [`<b>ρ 值是探索性的</b>：只有 ${rc.n_classes} 個類別，而門檻與類別篩選都是本分析設計的一部分。`,
+    `<b>The ρ values are exploratory</b>: only ${rc.n_classes} classes, and both the threshold and the class filter are part of this analysis design.`]];
+  const list=(items,mark,col)=>items.map(([z,e])=>
+    `<li style="padding-left:19px;position:relative;margin-bottom:7px">
+       <span style="position:absolute;left:0;color:${col};font-weight:700">${mark}</span>${L(z,e)}</li>`).join('');
+  el.innerHTML =
+    `<div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--good);margin-bottom:7px">${L('這張圖回答的','what it settles')}</div>
+     <ul style="list-style:none;font-size:12.5px;line-height:1.85">${list(yes,'✓','var(--good)')}</ul>
+     <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--warn);margin:15px 0 7px">${L('這張圖不回答的','what it does not')}</div>
+     <ul style="list-style:none;font-size:12.5px;line-height:1.85">${list(no,'✗','var(--warn)')}</ul>
+     <div class="disc" style="margin-top:12px">${L(
+      `因此本頁的措辭是：<b>多數失敗類別在本 assay、此劑量與時間點、此表徵與活性判準下，未呈現足以支撐可靠檢索的可偵測形態表型</b>——而不是「多數化合物沒有表型」。`,
+      `So the wording used here is: <b>most failing classes show no detectable morphological phenotype sufficient to support reliable retrieval, under this assay, dose, timepoint, representation and activity criterion</b> — not "most compounds have no phenotype".`)}</div>`;
 }
 RENDER.push(renderActNotes);
 
@@ -1747,12 +1782,14 @@ function renderThesis(){
       on JUMP's A549-24h it showed −0.027 where the observed value is <b>−0.069</b>.`]],
    ['05c', ['實驗設計','The design'], jumpCard(), null, null]];
   el.innerHTML = cards.map(c=>{ const [sec,tag,big,claim,body] = c[3] ? c : [c[0],c[1],c[2].big,c[2].claim,c[2].body]; return `
+    <a class="thesis" href="#sec-${sec.toLowerCase()}">
     <div class="card" style="border-color:rgba(255,107,208,.22)">
       <h2 style="border:0;padding:0;margin-bottom:9px"><span style="color:var(--accent)">${sec}</span> · ${L(tag[0],tag[1])}</h2>
       <div style="font-size:17px;color:var(--rna);font-variant-numeric:tabular-nums;letter-spacing:.02em">${L(big[0],big[1])}</div>
-      <div style="font-size:11px;color:var(--ink);margin:7px 0 8px;font-weight:600">${L(claim[0],claim[1])}</div>
-      <div style="font-size:11px;color:var(--dim);line-height:1.75">${L(body[0],body[1])}</div>
-    </div>`;}).join('')
+      <div style="font-size:11.5px;color:var(--ink);margin:7px 0 8px;font-weight:600">${L(claim[0],claim[1])}</div>
+      <div style="font-size:11.5px;color:var(--dim);line-height:1.8">${L(body[0],body[1])}</div>
+      <div class="go">${L(`跳到 ${sec} ↓`,`Jump to ${sec} ↓`)}</div>
+    </div></a>`;}).join('')
    + `<div class="card" style="grid-column:1/-1;background:rgba(255,107,208,.05);border-color:rgba(255,107,208,.22)">
         <div style="font-size:11.5px;color:var(--dim);line-height:1.8">${L(
         `這三件事都是<b>同一個問題的不同面貌</b>：一個摘要數字，只有連同「它是怎麼被彙總的、用什麼估計量算的、資料是在什麼設計下產生的」一起讀，才有意義。
